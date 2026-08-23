@@ -27,7 +27,7 @@ export default function RegisterPage() {
       setToken(res.data.accessToken);
       setUser(res.data.user);
       toast.success('Account created! Welcome to DevFlow 🎉');
-      router.push('/dashboard');
+      router.push('/');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Registration failed');
     } finally {

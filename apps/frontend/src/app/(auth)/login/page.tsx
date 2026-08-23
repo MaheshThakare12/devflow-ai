@@ -26,7 +26,7 @@ export default function LoginPage() {
       setToken(res.data.accessToken);
       setUser(res.data.user);
       toast.success('Welcome back!');
-      router.push('/dashboard');
+      router.push('/');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Invalid email or password');
     } finally {

@@ -351,6 +351,9 @@ export default function DevFlowApp() {
   const [statusFilter, setStatusFilter] = useState('All status')
   const [priorityFilter, setPriorityFilter] = useState('All priorities')
 
+  // Auth guard
+  const { user, isInitialized } = useAuthStore()
+
   // Real-time API Hooks
   const { data: apiProjects, isLoading: isLoadingProjects } = useProjects()
   const { data: apiTasks, isLoading: isLoadingTasks } = useTasks()
@@ -421,7 +424,14 @@ export default function DevFlowApp() {
   const [newProjDesc, setNewProjDesc] = useState('')
   const [newProjTone, setNewProjTone] = useState('blue')
 
-  const { user, logout } = useAuthStore()
+  const { logout } = useAuthStore()
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (isInitialized && !user) {
+      window.location.href = '/login'
+    }
+  }, [user, isInitialized])
 
   useEffect(() => {
     if (dark) {
@@ -443,6 +453,18 @@ export default function DevFlowApp() {
   const filteredProjects = useMemo(() => {
     return projectsList.filter(p => (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (p.description || '').toLowerCase().includes(searchQuery.toLowerCase()))
   }, [projectsList, searchQuery])
+
+  // Show spinner while auth initializing or redirecting
+  if (!isInitialized || !user) {
+    return (
+      <div className="min-h-screen bg-[#0e0e11] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="size-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+          <p className="text-sm text-zinc-400">Loading workspace...</p>
+        </div>
+      </div>
+    )
+  }
 
   // Real-time task status toggle
   const toggleTaskStatus = (id: string) => {
