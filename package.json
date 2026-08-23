@@ -1,0 +1,19 @@
+{
+  "name": "taskflow-ai",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/frontend",
+    "apps/backend"
+  ],
+  "scripts": {
+    "dev:backend": "cd apps/backend && npm run dev",
+    "dev:frontend": "cd apps/frontend && npm run dev",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "build": "npm run build --workspace=apps/backend && npm run build --workspace=apps/frontend",
+    "start": "concurrently \"npm run start --workspace=apps/backend\" \"npm run start --workspace=apps/frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
