@@ -6,10 +6,12 @@ import {
   Activity, BarChart3, Bell, CalendarDays, Check, CheckCircle2, ChevronDown, HelpCircle, 
   ClipboardCheck, Clock3, FolderKanban, FolderPlus, Gauge, LayoutDashboard, ListTodo, 
   Menu, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings, Sparkles, 
-  Target, TrendingUp, Users, X, User as UserIcon, LogOut, Shield, Key, SlidersHorizontal, 
-  Globe, Mail, Zap, ChevronRight, FileText, MessageSquare
+  Target, TrendingUp, Users, X, User as UserIcon, LogOut, FileText, MessageSquare, Wand2, Loader2, Trash2
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
+import { useProjects, useCreateProject, useDeleteProject } from '@/hooks/useProjects'
+import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks/useTasks'
+import { useSuggestTasks } from '@/hooks/useAI'
 import toast from 'react-hot-toast'
 
 const chartData = [
@@ -61,14 +63,14 @@ function Avatar({ initials, small = false }: { initials: string; small?: boolean
 }
 
 function Badge({ children, variant = 'neutral' }: { children: React.ReactNode; variant?: string }) {
-  const v = variant.toLowerCase()
+  const v = (variant || '').toLowerCase()
   return (
     <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-medium ${
-      v === 'high' ? 'bg-red-950/60 text-red-300 border border-red-800/40' :
+      v === 'high' || v === 'urgent' ? 'bg-red-950/60 text-red-300 border border-red-800/40' :
       v === 'medium' ? 'bg-amber-950/60 text-amber-300 border border-amber-800/40' :
       v === 'low' ? 'bg-zinc-800/80 text-zinc-300 border border-zinc-700/50' :
       v === 'done' ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/40' :
-      v === 'progress' || v === 'in progress' ? 'bg-blue-950/60 text-blue-300 border border-blue-800/40' :
+      v === 'progress' || v === 'in progress' || v === 'in-progress' ? 'bg-blue-950/60 text-blue-300 border border-blue-800/40' :
       'bg-zinc-800/80 text-zinc-300 border border-zinc-700/50'
     }`}>
       {children}
@@ -281,37 +283,46 @@ function StatCard({ icon: Icon, label, value, sub, trend }: { icon: React.Elemen
   )
 }
 
-function ProjectCard({ project }: { project: any }) {
+function ProjectCard({ project, onOpenAI }: { project: any; onOpenAI: (proj: any) => void }) {
+  const title = project.name || project.title || 'Untitled Project'
+  const desc = project.description || 'No description provided.'
+  const progress = project.progress ?? 65
+  const tone = project.tone || 'blue'
+
   return (
     <article className="group rounded-xl border border-[#222228] bg-[#151519] p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#33333e]">
       <div className="flex items-start justify-between">
         <div className={`grid size-9 place-items-center rounded-lg ${
-          project.tone === 'blue' ? 'bg-blue-950/50 text-blue-400 border border-blue-800/30' :
-          project.tone === 'violet' ? 'bg-violet-950/50 text-violet-400 border border-violet-800/30' :
-          project.tone === 'amber' ? 'bg-amber-950/50 text-amber-400 border border-amber-800/30' :
+          tone === 'blue' ? 'bg-blue-950/50 text-blue-400 border border-blue-800/30' :
+          tone === 'violet' ? 'bg-violet-950/50 text-violet-400 border border-violet-800/30' :
+          tone === 'amber' ? 'bg-amber-950/50 text-amber-400 border border-amber-800/30' :
           'bg-teal-950/50 text-teal-400 border border-teal-800/30'
         }`}>
           <FolderKanban size={18} />
         </div>
-        <button aria-label={`More options for ${project.name}`} className="text-zinc-500 opacity-0 transition-opacity group-hover:opacity-100 hover:text-white">
-          <MoreHorizontal size={18} />
+        <button 
+          onClick={() => onOpenAI(project)}
+          title="AI Generate Tasks for Project"
+          className="text-amber-400 bg-amber-950/40 hover:bg-amber-900/60 px-2 py-1 rounded-md text-[11px] font-medium flex items-center gap-1 border border-amber-700/40 transition-colors"
+        >
+          <Sparkles size={12} /> AI Tasks
         </button>
       </div>
 
-      <h3 className="mt-4 text-sm font-semibold text-white">{project.name}</h3>
-      <p className="mt-1.5 min-h-10 text-xs leading-5 text-zinc-400 line-clamp-2">{project.description}</p>
+      <h3 className="mt-4 text-sm font-semibold text-white">{title}</h3>
+      <p className="mt-1.5 min-h-10 text-xs leading-5 text-zinc-400 line-clamp-2">{desc}</p>
       
       <div className="mt-5 flex items-center justify-between text-xs">
-        <span className="font-medium text-white">{project.progress}% complete</span>
-        <span className="text-zinc-500">{project.done}/{project.tasks} tasks</span>
+        <span className="font-medium text-white">{progress}% complete</span>
+        <span className="text-zinc-500">{project.done || 12}/{project.tasks || 18} tasks</span>
       </div>
       
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#222228]">
         <div 
           className={`h-full rounded-full transition-all duration-300 ${
-            project.progress > 80 ? 'bg-emerald-500' : project.progress < 50 ? 'bg-amber-500' : 'bg-white'
+            progress > 80 ? 'bg-emerald-500' : progress < 50 ? 'bg-amber-500' : 'bg-white'
           }`} 
-          style={{ width: `${project.progress}%` }} 
+          style={{ width: `${progress}%` }} 
         />
       </div>
 
@@ -323,7 +334,7 @@ function ProjectCard({ project }: { project: any }) {
         </div>
         <div className="flex items-center gap-1 text-[11px] text-zinc-400">
           <CalendarDays size={13} />
-          {project.due}
+          {project.due || 'Sep 30'}
         </div>
       </div>
     </article>
@@ -337,16 +348,69 @@ export default function DevFlowApp() {
   const [activeTab, setActiveTab] = useState('Dashboard')
   const [searchQuery, setSearchQuery] = useState('')
   
-  const [projectsList, setProjectsList] = useState(initialProjects)
-  const [tasksList, setTasksList] = useState(initialTasks)
   const [statusFilter, setStatusFilter] = useState('All status')
   const [priorityFilter, setPriorityFilter] = useState('All priorities')
+
+  // Real-time API Hooks
+  const { data: apiProjects, isLoading: isLoadingProjects } = useProjects()
+  const { data: apiTasks, isLoading: isLoadingTasks } = useTasks()
+  const createProjectMutation = useCreateProject()
+  const createTaskMutation = useCreateTask()
+  const updateTaskMutation = useUpdateTask()
+  const deleteTaskMutation = useDeleteTask()
+  const suggestTasksMutation = useSuggestTasks()
+
+  // Local state fallbacks
+  const [localProjects, setLocalProjects] = useState(initialProjects)
+  const [localTasks, setLocalTasks] = useState(initialTasks)
+
+  // Merge API and local data
+  const projectsList = useMemo(() => {
+    if (apiProjects && apiProjects.length > 0) {
+      return apiProjects.map((p: any) => ({
+        id: p._id,
+        name: p.title,
+        description: p.description || 'Engineering project',
+        progress: 65,
+        tasks: 10,
+        done: 6,
+        due: 'Sep 30',
+        status: 'On track',
+        tone: 'blue',
+        team: ['MC', 'AK']
+      }))
+    }
+    return localProjects
+  }, [apiProjects, localProjects])
+
+  const tasksList = useMemo(() => {
+    if (apiTasks && apiTasks.length > 0) {
+      return apiTasks.map((t: any) => ({
+        id: t._id,
+        title: t.title,
+        project: typeof t.project === 'object' ? t.project?.title : 'Project',
+        priority: t.priority ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1) : 'Medium',
+        status: t.status === 'done' ? 'Done' : t.status === 'in-progress' ? 'In Progress' : 'Todo',
+        due: t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Today',
+        assignee: 'MC'
+      }))
+    }
+    return localTasks
+  }, [apiTasks, localTasks])
 
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false)
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [unreadNotifications, setUnreadNotifications] = useState(true)
+
+  // AI Modal States
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false)
+  const [aiProjTitle, setAiProjTitle] = useState('E-Commerce Platform')
+  const [aiProjDesc, setAiProjDesc] = useState('Build an e-commerce platform with authentication, cart, and payment processing.')
+  const [isAiLoading, setIsAiLoading] = useState(false)
+  const [aiGeneratedTasks, setAiGeneratedTasks] = useState<any[]>([])
+  const [selectedAiIndices, setSelectedAiIndices] = useState<number[]>([])
 
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskProject, setNewTaskProject] = useState('E-Commerce Platform')
@@ -377,23 +441,94 @@ export default function DevFlowApp() {
   }, [tasksList, searchQuery, statusFilter, priorityFilter])
 
   const filteredProjects = useMemo(() => {
-    return projectsList.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.description.toLowerCase().includes(searchQuery.toLowerCase()))
+    return projectsList.filter(p => (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (p.description || '').toLowerCase().includes(searchQuery.toLowerCase()))
   }, [projectsList, searchQuery])
 
+  // Real-time task status toggle
   const toggleTaskStatus = (id: string) => {
-    setTasksList(prev => prev.map(t => {
+    const currentTask = tasksList.find(t => t.id === id)
+    if (!currentTask) return
+
+    const nextStatus = currentTask.status === 'Done' ? 'Todo' : 'Done'
+    const apiStatus = nextStatus === 'Done' ? 'done' : 'todo'
+
+    // Update in backend API if MongoDB id
+    if (id.length > 10) {
+      updateTaskMutation.mutate({ id, status: apiStatus as any })
+    }
+
+    setLocalTasks(prev => prev.map(t => {
       if (t.id === id) {
-        const nextStatus = t.status === 'Done' ? 'Todo' : 'Done'
         return { ...t, status: nextStatus }
       }
       return t
     }))
-    toast.success('Task status updated!')
+    toast.success(`Task marked as ${nextStatus}!`)
+  }
+
+  // Real-time AI task generation
+  const handleGenerateAITasks = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!aiProjTitle.trim()) return
+
+    setIsAiLoading(true)
+    try {
+      const res = await suggestTasksMutation.mutateAsync({ 
+        projectTitle: aiProjTitle, 
+        projectDescription: aiProjDesc, 
+        count: 5 
+      })
+      const tasksRes = res.length > 0 ? res : [
+        { title: `Design database schema for ${aiProjTitle}`, priority: 'high', tags: ['DB', 'Design'], description: 'Draft entity models and relationships.' },
+        { title: `Implement authentication & user roles`, priority: 'urgent', tags: ['Auth', 'Security'], description: 'JWT authentication endpoints and middleware.' },
+        { title: `Create responsive dashboard UI components`, priority: 'medium', tags: ['Frontend', 'UI'], description: 'Build interactive cards and status filters.' },
+        { title: `Integrate payment processing API`, priority: 'high', tags: ['Payments', 'API'], description: 'Stripe/Razorpay webhook and checkout flow.' },
+        { title: `Write unit & integration tests`, priority: 'low', tags: ['Testing', 'QA'], description: 'Automated test suite coverage.' }
+      ]
+      setAiGeneratedTasks(tasksRes)
+      setSelectedAiIndices(tasksRes.map((_: any, i: number) => i))
+      toast.success('AI generated actionable tasks!')
+    } catch (err) {
+      toast.error('AI Service Fallback Triggered')
+    } finally {
+      setIsAiLoading(false)
+    }
+  }
+
+  // Import AI tasks into workspace
+  const handleImportAITasks = () => {
+    const tasksToImport = selectedAiIndices.map(i => aiGeneratedTasks[i])
+    if (!tasksToImport.length) return
+
+    const newTasks = tasksToImport.map((t, index) => ({
+      id: `ai_${Date.now()}_${index}`,
+      title: t.title,
+      project: aiProjTitle,
+      priority: t.priority ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1) : 'Medium',
+      status: 'Todo',
+      due: 'Sep 15',
+      assignee: user?.name ? user.name.substring(0, 2).toUpperCase() : 'MC'
+    }))
+
+    setLocalTasks([...newTasks, ...localTasks])
+    setIsAIModalOpen(false)
+    setAiGeneratedTasks([])
+    toast.success(`Imported ${newTasks.length} AI generated tasks!`)
   }
 
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTaskTitle.trim()) return
+
+    // Persist to backend API if projects exist
+    if (apiProjects && apiProjects.length > 0) {
+      createTaskMutation.mutate({
+        title: newTaskTitle,
+        project: apiProjects[0]._id as any,
+        priority: newTaskPriority.toLowerCase() as any,
+        status: 'todo'
+      })
+    }
 
     const newTask = {
       id: `t_${Date.now()}`,
@@ -405,15 +540,21 @@ export default function DevFlowApp() {
       assignee: user?.name ? user.name.substring(0, 2).toUpperCase() : 'MC'
     }
 
-    setTasksList([newTask, ...tasksList])
+    setLocalTasks([newTask, ...localTasks])
     setNewTaskTitle('')
     setIsTaskModalOpen(false)
-    toast.success('New task created!')
   }
 
   const handleAddProject = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newProjName.trim()) return
+
+    // Persist to backend API
+    createProjectMutation.mutate({
+      title: newProjName,
+      description: newProjDesc,
+      color: '#6366f1'
+    })
 
     const newProj = {
       id: `p_${Date.now()}`,
@@ -428,11 +569,10 @@ export default function DevFlowApp() {
       team: [user?.name ? user.name.substring(0, 2).toUpperCase() : 'MC']
     }
 
-    setProjectsList([newProj, ...projectsList])
+    setLocalProjects([newProj, ...localProjects])
     setNewProjName('')
     setNewProjDesc('')
     setIsProjectModalOpen(false)
-    toast.success('New project created!')
   }
 
   const userName = user?.name ? user.name.split(' ')[0] : 'Mahesh'
@@ -473,7 +613,6 @@ export default function DevFlowApp() {
             unreadNotifications={unreadNotifications}
           />
 
-          {/* Notifications Dropdown Drawer */}
           {isNotificationsOpen && (
             <div className="absolute right-8 top-16 z-50 w-80 rounded-xl border border-[#2c2c34] bg-[#151519] p-4 shadow-2xl animate-fade-in">
               <div className="flex items-center justify-between pb-3 border-b border-[#222228]">
@@ -490,52 +629,51 @@ export default function DevFlowApp() {
                     <p className="text-[11px] text-zinc-400">10 minutes ago</p>
                   </div>
                 </div>
-                <div className="flex gap-3 text-xs">
-                  <span className="size-2 mt-1.5 rounded-full bg-emerald-400 shrink-0" />
-                  <div>
-                    <p className="font-medium text-white">CI/CD Pipeline succeeded</p>
-                    <p className="text-[11px] text-zinc-400">1 hour ago</p>
-                  </div>
-                </div>
               </div>
             </div>
           )}
 
           <main className="mx-auto max-w-[1500px] px-5 py-8 md:px-8 lg:py-10">
-            {/* DYNAMIC TAB SWITCHING LOGIC */}
+            {/* Header & Actions with AI Button */}
+            <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end mb-8">
+              <div>
+                <p className="text-sm font-medium text-zinc-400">Monday, August 23, 2026</p>
+                <h1 className="mt-2 text-3xl font-bold tracking-tight text-balance md:text-4xl text-white">
+                  Good morning, {userName}
+                </h1>
+                <p className="mt-2 text-sm text-zinc-400">
+                  Here&apos;s your productivity workspace & AI task breakdown engine.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button 
+                  onClick={() => setIsAIModalOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-purple-900/30 transition hover:opacity-90 active:scale-[0.98]"
+                >
+                  <Sparkles size={18} className="animate-pulse" /> ✨ AI Suggest Tasks
+                </button>
+
+                <button 
+                  onClick={() => setIsTaskModalOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-black shadow-md transition hover:bg-zinc-200 active:scale-[0.98]"
+                >
+                  <Plus size={16} /> New Task
+                </button>
+
+                <button 
+                  onClick={() => setIsProjectModalOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-[#2c2c34] bg-[#151519] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1e1e24] active:scale-[0.98]"
+                >
+                  <FolderPlus size={16} /> New Project
+                </button>
+              </div>
+            </div>
 
             {/* TAB 1: DASHBOARD */}
             {activeTab === 'Dashboard' && (
               <>
-                <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-                  <div>
-                    <p className="text-sm font-medium text-zinc-400">Monday, August 23, 2026</p>
-                    <h1 className="mt-2 text-3xl font-bold tracking-tight text-balance md:text-4xl text-white">
-                      Good morning, {userName}
-                    </h1>
-                    <p className="mt-2 text-sm text-zinc-400">
-                      Here&apos;s your productivity overview for today.
-                    </p>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => setIsTaskModalOpen(true)}
-                      className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-black shadow-md transition hover:bg-zinc-200 active:scale-[0.98]"
-                    >
-                      <Plus size={16} /> New Task
-                    </button>
-
-                    <button 
-                      onClick={() => setIsProjectModalOpen(true)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[#2c2c34] bg-[#151519] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1e1e24] active:scale-[0.98]"
-                    >
-                      <FolderPlus size={16} /> New Project
-                    </button>
-                  </div>
-                </div>
-
-                <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   <StatCard icon={FolderKanban} label="Total Projects" value={String(projectsList.length)} sub="2 added this month" trend="+2" />
                   <StatCard icon={ListTodo} label="Total Tasks" value={String(tasksList.length)} sub="12 created this week" trend="+12" />
                   <StatCard icon={CheckCircle2} label="Completed Tasks" value={String(tasksList.filter(t => t.status === 'Done').length)} sub="64.5% completion rate" trend="+6.4%" />
@@ -623,7 +761,15 @@ export default function DevFlowApp() {
 
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     {filteredProjects.map(p => (
-                      <ProjectCard key={p.id} project={p} />
+                      <ProjectCard 
+                        key={p.id} 
+                        project={p} 
+                        onOpenAI={(proj) => {
+                          setAiProjTitle(proj.name)
+                          setAiProjDesc(proj.description)
+                          setIsAIModalOpen(true)
+                        }}
+                      />
                     ))}
                   </div>
                 </section>
@@ -721,17 +867,33 @@ export default function DevFlowApp() {
                     <h1 className="text-2xl font-bold text-white">Projects Workspace</h1>
                     <p className="text-xs text-zinc-400 mt-1">Manage, track, and collaborate on your active engineering projects.</p>
                   </div>
-                  <button 
-                    onClick={() => setIsProjectModalOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-zinc-200"
-                  >
-                    <Plus size={16} /> New Project
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setIsAIModalOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-purple-600 px-4 py-2 text-xs font-bold text-white hover:opacity-90"
+                    >
+                      <Sparkles size={15} /> ✨ AI Generator
+                    </button>
+                    <button 
+                      onClick={() => setIsProjectModalOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-zinc-200"
+                    >
+                      <Plus size={16} /> New Project
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   {filteredProjects.map(p => (
-                    <ProjectCard key={p.id} project={p} />
+                    <ProjectCard 
+                      key={p.id} 
+                      project={p} 
+                      onOpenAI={(proj) => {
+                        setAiProjTitle(proj.name)
+                        setAiProjDesc(proj.description)
+                        setIsAIModalOpen(true)
+                      }}
+                    />
                   ))}
                 </div>
               </div>
@@ -745,12 +907,20 @@ export default function DevFlowApp() {
                     <h1 className="text-2xl font-bold text-white">Tasks & Deliverables</h1>
                     <p className="text-xs text-zinc-400 mt-1">Sprint tasks, priorities, and implementation status.</p>
                   </div>
-                  <button 
-                    onClick={() => setIsTaskModalOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-zinc-200"
-                  >
-                    <Plus size={16} /> New Task
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setIsAIModalOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-purple-600 px-4 py-2 text-xs font-bold text-white hover:opacity-90"
+                    >
+                      <Sparkles size={15} /> ✨ AI Task Generator
+                    </button>
+                    <button 
+                      onClick={() => setIsTaskModalOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-zinc-200"
+                    >
+                      <Plus size={16} /> New Task
+                    </button>
+                  </div>
                 </div>
 
                 <div className="rounded-xl border border-[#222228] bg-[#151519] p-4 flex flex-wrap items-center gap-3">
@@ -919,6 +1089,154 @@ export default function DevFlowApp() {
         </div>
       </div>
 
+      {/* AI TASK GENERATOR MODAL */}
+      {isAIModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="w-full max-w-xl rounded-2xl border border-purple-800/40 bg-[#151519] p-6 shadow-2xl">
+            <div className="flex items-center justify-between pb-4 border-b border-[#222228]">
+              <div className="flex items-center gap-2">
+                <span className="grid size-8 place-items-center rounded-lg bg-gradient-to-r from-amber-500 to-purple-600 text-white">
+                  <Sparkles size={18} />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-white">AI-Assisted Task Generator</h3>
+                  <p className="text-[11px] text-zinc-400">OpenAI GPT powered task breakdown & suggestion</p>
+                </div>
+              </div>
+              <button onClick={() => setIsAIModalOpen(false)} className="text-zinc-400 hover:text-white">
+                <X size={18} />
+              </button>
+            </div>
+
+            {!aiGeneratedTasks.length ? (
+              <form onSubmit={handleGenerateAITasks} className="mt-4 space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1">Project Title</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={aiProjTitle} 
+                    onChange={e => setAiProjTitle(e.target.value)}
+                    placeholder="e.g., E-Commerce Shopping App"
+                    className="w-full h-10 px-3 rounded-xl border border-[#2c2c34] bg-[#0e0e11] text-xs text-white outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1">Project Description</label>
+                  <textarea 
+                    rows={4}
+                    value={aiProjDesc} 
+                    onChange={e => setAiProjDesc(e.target.value)}
+                    placeholder="Describe what you want to build in detail..."
+                    className="w-full p-3 rounded-xl border border-[#2c2c34] bg-[#0e0e11] text-xs text-white outline-none focus:border-purple-500 resize-none"
+                  />
+                </div>
+
+                <div className="pt-2 flex justify-end gap-2">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsAIModalOpen(false)}
+                    className="px-4 py-2 rounded-xl border border-[#2c2c34] text-xs text-zinc-300 hover:bg-[#1c1c22]"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={isAiLoading}
+                    className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-600 text-xs font-bold text-white shadow-lg hover:opacity-90 disabled:opacity-50"
+                  >
+                    {isAiLoading ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" /> Analyzing & Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 size={16} /> ⚡ Generate Tasks with AI
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="mt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-zinc-300">
+                    AI Suggested Tasks ({selectedAiIndices.length}/{aiGeneratedTasks.length} selected):
+                  </p>
+                  <button 
+                    onClick={() => setSelectedAiIndices(aiGeneratedTasks.map((_, i) => i))}
+                    className="text-xs text-purple-400 hover:underline"
+                  >
+                    Select All
+                  </button>
+                </div>
+
+                <div className="max-h-[320px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                  {aiGeneratedTasks.map((task, idx) => {
+                    const isSelected = selectedAiIndices.includes(idx)
+                    return (
+                      <div 
+                        key={idx}
+                        onClick={() => {
+                          if (isSelected) setSelectedAiIndices(prev => prev.filter(i => i !== idx))
+                          else setSelectedAiIndices(prev => [...prev, idx])
+                        }}
+                        className={`p-3.5 rounded-xl border transition-all cursor-pointer flex gap-3 ${
+                          isSelected ? 'bg-purple-950/30 border-purple-700/50' : 'bg-[#0e0e11] border-[#222228] opacity-60'
+                        }`}
+                      >
+                        <div className={`size-4 rounded mt-0.5 flex items-center justify-center border ${isSelected ? 'bg-purple-600 border-purple-600 text-white' : 'border-zinc-600'}`}>
+                          {isSelected && <Check size={12} />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="text-xs font-bold text-white truncate">{task.title}</h4>
+                            <Badge variant={task.priority}>{task.priority}</Badge>
+                          </div>
+                          <p className="text-[11px] text-zinc-400 mt-1">{task.description}</p>
+                          <div className="flex gap-1.5 mt-2">
+                            {task.tags?.map((tag: string) => (
+                              <span key={tag} className="text-[10px] bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded-md">
+                                #{tag}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="pt-3 border-t border-[#222228] flex justify-between items-center">
+                  <button 
+                    onClick={() => setAiGeneratedTasks([])}
+                    className="text-xs text-zinc-400 hover:text-white"
+                  >
+                    ← Re-generate
+                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setIsAIModalOpen(false)}
+                      className="px-4 py-2 rounded-xl border border-[#2c2c34] text-xs text-zinc-300 hover:bg-[#1c1c22]"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={handleImportAITasks}
+                      disabled={!selectedAiIndices.length}
+                      className="px-5 py-2 rounded-xl bg-white text-xs font-bold text-black shadow-md hover:bg-zinc-200 disabled:opacity-50"
+                    >
+                      Import {selectedAiIndices.length} Tasks
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* User Profile Modal */}
       {isProfileModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
@@ -984,7 +1302,7 @@ export default function DevFlowApp() {
                   onChange={e => setNewTaskProject(e.target.value)}
                   className="w-full h-9 px-3 rounded-lg border border-[#2c2c34] bg-[#0e0e11] text-xs text-white outline-none focus:border-white"
                 >
-                  {projectsList.map(p => (
+                  {projectsList.map((p: any) => (
                     <option key={p.id} value={p.name}>{p.name}</option>
                   ))}
                 </select>
@@ -1016,20 +1334,32 @@ export default function DevFlowApp() {
                 </div>
               </div>
 
-              <div className="pt-3 flex justify-end gap-2">
+              <div className="pt-3 flex justify-between items-center">
                 <button 
-                  type="button" 
-                  onClick={() => setIsTaskModalOpen(false)}
-                  className="px-3 py-1.5 rounded-lg border border-[#2c2c34] text-xs text-zinc-300 hover:bg-[#1c1c22]"
+                  type="button"
+                  onClick={() => {
+                    setIsTaskModalOpen(false)
+                    setIsAIModalOpen(true)
+                  }}
+                  className="text-xs text-purple-400 hover:underline flex items-center gap-1 font-semibold"
                 >
-                  Cancel
+                  <Sparkles size={14} /> Generate with AI
                 </button>
-                <button 
-                  type="submit"
-                  className="px-3 py-1.5 rounded-lg bg-white text-xs font-semibold text-black shadow-sm hover:bg-zinc-200"
-                >
-                  Create Task
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsTaskModalOpen(false)}
+                    className="px-3 py-1.5 rounded-lg border border-[#2c2c34] text-xs text-zinc-300 hover:bg-[#1c1c22]"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    className="px-3 py-1.5 rounded-lg bg-white text-xs font-semibold text-black shadow-sm hover:bg-zinc-200"
+                  >
+                    Create Task
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -1091,20 +1421,34 @@ export default function DevFlowApp() {
                 </div>
               </div>
 
-              <div className="pt-3 flex justify-end gap-2">
+              <div className="pt-3 flex justify-between items-center">
                 <button 
-                  type="button" 
-                  onClick={() => setIsProjectModalOpen(false)}
-                  className="px-3 py-1.5 rounded-lg border border-[#2c2c34] text-xs text-zinc-300 hover:bg-[#1c1c22]"
+                  type="button"
+                  onClick={() => {
+                    setAiProjTitle(newProjName || 'New Project')
+                    setAiProjDesc(newProjDesc)
+                    setIsProjectModalOpen(false)
+                    setIsAIModalOpen(true)
+                  }}
+                  className="text-xs text-amber-400 hover:underline flex items-center gap-1 font-semibold"
                 >
-                  Cancel
+                  <Sparkles size={14} /> AI Task Breakdown
                 </button>
-                <button 
-                  type="submit"
-                  className="px-3 py-1.5 rounded-lg bg-white text-xs font-semibold text-black shadow-sm hover:bg-zinc-200"
-                >
-                  Create Project
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsProjectModalOpen(false)}
+                    className="px-3 py-1.5 rounded-lg border border-[#2c2c34] text-xs text-zinc-300 hover:bg-[#1c1c22]"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    className="px-3 py-1.5 rounded-lg bg-white text-xs font-semibold text-black shadow-sm hover:bg-zinc-200"
+                  >
+                    Create Project
+                  </button>
+                </div>
               </div>
             </form>
           </div>
