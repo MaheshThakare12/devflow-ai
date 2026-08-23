@@ -3,7 +3,6 @@
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { motion } from 'framer-motion';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   const { user, isInitialized } = useAuthStore();
@@ -19,19 +18,16 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   if (user) return null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-background">
-      {/* Animated background elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/20 blur-[120px] animate-pulse-glow" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-secondary/20 blur-[120px] animate-pulse-glow" style={{ animationDelay: '1s' }} />
-      
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="z-10 w-full max-w-[1000px] flex gap-8 p-4"
-      >
+    <div className="min-h-screen bg-[#0e0e11] flex items-center justify-center p-4">
+      {/* Subtle background glow like dashboard */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -top-40 -left-40 w-80 h-80 rounded-full bg-white/[0.02] blur-3xl" />
+        <div className="absolute -bottom-40 -right-40 w-80 h-80 rounded-full bg-white/[0.02] blur-3xl" />
+      </div>
+
+      <div className="z-10 w-full max-w-4xl">
         {children}
-      </motion.div>
+      </div>
     </div>
   );
 }
