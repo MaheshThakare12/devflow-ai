@@ -204,22 +204,69 @@ export default function LoginPage() {
                   <button onClick={() => setIsGoogleModalOpen(false)} className="text-zinc-400 hover:text-white">✕</button>
                 </div>
 
-                <form onSubmit={handleActualGoogleLogin} className="mt-5 space-y-4">
+                {/* Quick Google Account Selection */}
+                <div className="mt-4 space-y-2.5">
+                  <p className="text-xs font-semibold text-zinc-400">Choose a Google Account to continue:</p>
+                  
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsLoading(true);
+                      try {
+                        const res = await api.post('/auth/google', {
+                          name: 'Mahesh Thakare',
+                          email: 'maheshthakare12@gmail.com',
+                          googleId: 'g_11728394018274',
+                          avatar: 'https://ui-avatars.com/api/?name=Mahesh+Thakare&background=4285F4&color=fff'
+                        });
+                        setToken(res.data.accessToken);
+                        setUser(res.data.user);
+                        toast.success('Signed in with Google Account (maheshthakare12@gmail.com)! 🚀');
+                        setIsGoogleModalOpen(false);
+                        router.push('/');
+                      } catch (err: any) {
+                        toast.error('Google Sign In failed');
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    }}
+                    className="w-full p-3 rounded-xl border border-[#2c2c34] bg-[#0e0e11] hover:border-blue-500/60 hover:bg-[#1a1a24] transition-all flex items-center gap-3 text-left"
+                  >
+                    <div className="size-9 rounded-full bg-blue-600 grid place-items-center text-white font-bold text-xs">
+                      MT
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-white">Mahesh Thakare</p>
+                      <p className="text-[11px] text-zinc-400 truncate">maheshthakare12@gmail.com</p>
+                    </div>
+                    <span className="text-[11px] px-2 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-800/40">Default</span>
+                  </button>
+                </div>
+
+                <div className="relative my-5">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-[#222228]" />
+                  </div>
+                  <div className="relative flex justify-center text-[10px] uppercase">
+                    <span className="bg-[#151519] px-2 text-zinc-500 font-medium">Or enter another Google ID</span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleActualGoogleLogin} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-zinc-300 mb-1">Enter Actual Google Gmail ID</label>
+                    <label className="block text-xs font-medium text-zinc-300 mb-1">Your Google Gmail Address</label>
                     <input
                       type="email"
                       required
                       value={googleEmailInput}
                       onChange={(e) => setGoogleEmailInput(e.target.value)}
-                      placeholder="e.g. mahesh.thakare@gmail.com"
+                      placeholder="e.g. yourname@gmail.com"
                       className="w-full h-10 px-3.5 rounded-lg border border-[#2c2c34] bg-[#0e0e11] text-xs text-white outline-none focus:border-blue-500"
-                      autoFocus
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-zinc-300 mb-1">Google Account Name (Optional)</label>
+                    <label className="block text-xs font-medium text-zinc-300 mb-1">Account Name (Optional)</label>
                     <input
                       type="text"
                       value={googleNameInput}
@@ -242,7 +289,7 @@ export default function LoginPage() {
                       disabled={isLoading}
                       className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white flex items-center gap-2"
                     >
-                      {isLoading ? 'Connecting...' : 'Continue with Google Account'}
+                      {isLoading ? 'Connecting...' : 'Sign in with Google Account'}
                     </button>
                   </div>
                 </form>
