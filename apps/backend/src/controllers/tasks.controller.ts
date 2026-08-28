@@ -6,16 +6,19 @@ import { AppError } from '../middleware/errorHandler';
 export const getTasks = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { projectId, status, priority, assigneeId, search, sortBy, order } = req.query;
-    if (!projectId) return next(new AppError('projectId is required', 400));
 
-    const project = await Project.findById(projectId);
-    if (!project) return next(new AppError('Project not found', 404));
+    // Get all projects accessible to current user
+    const userProjects = await Project.find({
+      $or: [{ owner: req.user?._id }, { members: req.user?._id }]
+    }).select('_id');
 
-    const isOwner = project.owner.toString() === req.user?.id;
-    const isMember = project.members.some(m => m.toString() === req.user?.id);
-    if (!isOwner && !isMember) return next(new AppError('Not authorized', 403));
+    const projectIds = userProjects.map(p => p._id);
 
-    let filter: any = { project: projectId };
+    let filter: any = { project: { $in: projectIds } };
+    if (projectId) {
+      filter.project = projectId;
+    }
+
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
     if (assigneeId) filter.assignee = assigneeId;
@@ -28,6 +31,7 @@ export const getTasks = async (req: Request, res: Response, next: NextFunction) 
     }
 
     const tasks = await Task.find(filter)
+      .populate('project', 'title color')
       .populate('assignee', 'name email avatar')
       .sort(sort);
 
@@ -36,6 +40,7 @@ export const getTasks = async (req: Request, res: Response, next: NextFunction) 
     next(err);
   }
 };
+
 
 export const createTask = async (req: Request, res: Response, next: NextFunction) => {
   try {

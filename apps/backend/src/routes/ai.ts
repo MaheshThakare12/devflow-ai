@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { suggestTasks } from '../controllers/ai.controller';
+import { suggestTasks, enhanceTask } from '../controllers/ai.controller';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 
@@ -16,4 +16,15 @@ router.post(
   suggestTasks
 );
 
+router.post(
+  '/enhance-task',
+  authenticate,
+  [
+    body('title').notEmpty().withMessage('title is required')
+  ],
+  validate,
+  enhanceTask
+);
+
 export default router;
+

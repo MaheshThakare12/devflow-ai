@@ -11,7 +11,7 @@ import {
 import { useAuthStore } from '@/store/authStore'
 import { useProjects, useCreateProject, useDeleteProject } from '@/hooks/useProjects'
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks/useTasks'
-import { useSuggestTasks } from '@/hooks/useAI'
+import { useSuggestTasks, useEnhanceTask } from '@/hooks/useAI'
 import toast from 'react-hot-toast'
 
 const chartData = [
@@ -31,20 +31,10 @@ const analyticsData = [
   { week: 'Week 4', velocity: 41, hours: 46 },
 ]
 
-const initialProjects = [
-  { id: '1', name: 'E-Commerce Platform', description: 'Modern online shopping platform with authentication and payment integration.', progress: 78, tasks: 24, done: 19, due: 'Sep 18', status: 'On track', tone: 'blue', team: ['MC', 'AK', 'RS'] },
-  { id: '2', name: 'Developer Portfolio', description: 'Personal portfolio showcasing projects, skills, and technical writing.', progress: 92, tasks: 12, done: 11, due: 'Sep 05', status: 'On track', tone: 'violet', team: ['MC', 'JL'] },
-  { id: '3', name: 'AI Task Manager', description: 'Intelligent task planning with natural language and smart prioritization.', progress: 46, tasks: 18, done: 8, due: 'Oct 02', status: 'At risk', tone: 'amber', team: ['MC', 'NT', 'AK'] },
-  { id: '4', name: 'College Management System', description: 'Unified platform for students, faculty, and administration workflows.', progress: 64, tasks: 31, done: 20, due: 'Oct 24', status: 'On track', tone: 'teal', team: ['MC', 'RS'] },
-]
+const initialProjects: any[] = []
 
-const initialTasks = [
-  { id: 't1', title: 'Design authentication flow', project: 'E-Commerce Platform', priority: 'High', status: 'In Progress', due: 'Today', assignee: 'MC' },
-  { id: 't2', title: 'Create REST API endpoints', project: 'AI Task Manager', priority: 'High', status: 'Todo', due: 'Aug 26', assignee: 'AK' },
-  { id: 't3', title: 'Implement MySQL database schema', project: 'College Management System', priority: 'Medium', status: 'In Progress', due: 'Aug 28', assignee: 'RS' },
-  { id: 't4', title: 'Build responsive dashboard', project: 'Developer Portfolio', priority: 'Medium', status: 'Done', due: 'Aug 22', assignee: 'MC' },
-  { id: 't5', title: 'Integrate AI task generator', project: 'AI Task Manager', priority: 'Low', status: 'Todo', due: 'Sep 01', assignee: 'NT' },
-]
+const initialTasks: any[] = []
+
 
 const activities = [
   ['Completed', 'Build authentication API', '12 min ago', CheckCircle2],
@@ -85,7 +75,8 @@ function Sidebar({
   setMobileOpen,
   activeTab,
   setActiveTab,
-  onOpenProfile
+  onOpenProfile,
+  userRole
 }: { 
   collapsed: boolean; 
   setCollapsed: (v: boolean) => void; 
@@ -94,10 +85,11 @@ function Sidebar({
   activeTab: string;
   setActiveTab: (v: string) => void;
   onOpenProfile: () => void;
+  userRole?: string;
 }) {
   const { user } = useAuthStore()
   const userName = user?.name || 'Mahesh'
-  const userRole = user?.role || 'Developer'
+  const displayRole = userRole || user?.role || 'Full Stack Engineer'
   const initials = userName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || 'MC'
 
   const nav = [
@@ -163,21 +155,8 @@ function Sidebar({
         ))}
       </nav>
 
-      {!collapsed && (
-        <div className="rounded-xl bg-[#1c1c22] p-3.5 border border-[#26262e]">
-          <div className="mb-2 flex items-center gap-2">
-            <Gauge size={15} className="text-white" />
-            <span className="text-xs font-semibold text-white">Weekly goal</span>
-          </div>
-          <div className="mb-2 flex justify-between text-[11px] text-zinc-400">
-            <span>18 of 25 tasks</span>
-            <span>72%</span>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-[#26262e]">
-            <div className="h-full w-[72%] rounded-full bg-white" />
-          </div>
-        </div>
-      )}
+
+
 
       <button 
         onClick={onOpenProfile}
@@ -187,7 +166,7 @@ function Sidebar({
         {!collapsed && (
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium text-white">{userName}</span>
-            <span className="block text-[11px] text-zinc-400">{userRole}</span>
+            <span className="block text-[11px] text-zinc-400">{displayRole}</span>
           </span>
         )}
         {!collapsed && <MoreHorizontal size={16} className="text-zinc-400" />}
@@ -283,14 +262,27 @@ function StatCard({ icon: Icon, label, value, sub, trend }: { icon: React.Elemen
   )
 }
 
-function ProjectCard({ project, onOpenAI }: { project: any; onOpenAI: (proj: any) => void }) {
+function ProjectCard({ 
+  project, 
+  onOpenAI, 
+  onDelete,
+  onSelectProject
+}: { 
+  project: any; 
+  onOpenAI: (proj: any) => void; 
+  onDelete: (id: string) => void;
+  onSelectProject?: (title: string) => void;
+}) {
   const title = project.name || project.title || 'Untitled Project'
   const desc = project.description || 'No description provided.'
   const progress = project.progress ?? 65
   const tone = project.tone || 'blue'
 
   return (
-    <article className="group rounded-xl border border-[#222228] bg-[#151519] p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#33333e]">
+    <article 
+      onClick={() => onSelectProject?.(title)}
+      className="group rounded-xl border border-[#222228] bg-[#151519] p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-purple-600/50 cursor-pointer"
+    >
       <div className="flex items-start justify-between">
         <div className={`grid size-9 place-items-center rounded-lg ${
           tone === 'blue' ? 'bg-blue-950/50 text-blue-400 border border-blue-800/30' :
@@ -300,27 +292,38 @@ function ProjectCard({ project, onOpenAI }: { project: any; onOpenAI: (proj: any
         }`}>
           <FolderKanban size={18} />
         </div>
-        <button 
-          onClick={() => onOpenAI(project)}
-          title="AI Generate Tasks for Project"
-          className="text-amber-400 bg-amber-950/40 hover:bg-amber-900/60 px-2 py-1 rounded-md text-[11px] font-medium flex items-center gap-1 border border-amber-700/40 transition-colors"
-        >
-          <Sparkles size={12} /> AI Tasks
-        </button>
+        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <button 
+            onClick={() => onOpenAI(project)}
+            title="AI Generate Tasks for Project"
+            className="text-amber-400 bg-amber-950/40 hover:bg-amber-900/60 px-2 py-1 rounded-md text-[11px] font-medium flex items-center gap-1 border border-amber-700/40 transition-colors"
+          >
+            <Sparkles size={12} /> AI Tasks
+          </button>
+          <button
+            onClick={() => onDelete(project.id)}
+            title="Delete Project"
+            className="text-red-400 bg-red-950/40 hover:bg-red-900/60 p-1.5 rounded-md border border-red-800/40 transition-colors opacity-0 group-hover:opacity-100"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
       </div>
 
-      <h3 className="mt-4 text-sm font-semibold text-white">{title}</h3>
+      <h3 className="mt-4 text-sm font-semibold text-white group-hover:text-purple-300 transition-colors">{title}</h3>
       <p className="mt-1.5 min-h-10 text-xs leading-5 text-zinc-400 line-clamp-2">{desc}</p>
       
       <div className="mt-5 flex items-center justify-between text-xs">
-        <span className="font-medium text-white">{progress}% complete</span>
-        <span className="text-zinc-500">{project.done || 12}/{project.tasks || 18} tasks</span>
+        <span className="font-semibold text-white">{progress}% complete</span>
+        <span className="text-zinc-400 font-medium">
+          <strong className="text-emerald-400">{project.done || 0}</strong> / {project.tasks || 0} tasks done
+        </span>
       </div>
       
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#222228]">
+      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#222228]">
         <div 
-          className={`h-full rounded-full transition-all duration-300 ${
-            progress > 80 ? 'bg-emerald-500' : progress < 50 ? 'bg-amber-500' : 'bg-white'
+          className={`h-full rounded-full transition-all duration-500 ${
+            progress >= 80 ? 'bg-emerald-500' : progress >= 40 ? 'bg-purple-500' : progress > 0 ? 'bg-amber-500' : 'bg-zinc-700'
           }`} 
           style={{ width: `${progress}%` }} 
         />
@@ -328,7 +331,7 @@ function ProjectCard({ project, onOpenAI }: { project: any; onOpenAI: (proj: any
 
       <div className="mt-5 flex items-center justify-between pt-2 border-t border-[#222228]">
         <div className="flex -space-x-1.5">
-          {(project.team || ['MC', 'AK']).map((x: string) => (
+          {(project.team || ['MC']).map((x: string) => (
             <Avatar key={x} initials={x} small />
           ))}
         </div>
@@ -341,15 +344,17 @@ function ProjectCard({ project, onOpenAI }: { project: any; onOpenAI: (proj: any
   )
 }
 
+
+
 export default function DevFlowApp() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [dark, setDark] = useState(true)
   const [activeTab, setActiveTab] = useState('Dashboard')
   const [searchQuery, setSearchQuery] = useState('')
-  
-  const [statusFilter, setStatusFilter] = useState('All status')
+   const [statusFilter, setStatusFilter] = useState('All status')
   const [priorityFilter, setPriorityFilter] = useState('All priorities')
+  const [selectedProjectFilter, setSelectedProjectFilter] = useState<string | null>(null)
 
   // Auth guard
   const { user, isInitialized } = useAuthStore()
@@ -358,48 +363,65 @@ export default function DevFlowApp() {
   const { data: apiProjects, isLoading: isLoadingProjects } = useProjects()
   const { data: apiTasks, isLoading: isLoadingTasks } = useTasks()
   const createProjectMutation = useCreateProject()
+  const deleteProjectMutation = useDeleteProject()
   const createTaskMutation = useCreateTask()
   const updateTaskMutation = useUpdateTask()
   const deleteTaskMutation = useDeleteTask()
   const suggestTasksMutation = useSuggestTasks()
+  const enhanceTaskMutation = useEnhanceTask()
 
   // Local state fallbacks
-  const [localProjects, setLocalProjects] = useState(initialProjects)
-  const [localTasks, setLocalTasks] = useState(initialTasks)
-
-  // Merge API and local data
-  const projectsList = useMemo(() => {
-    if (apiProjects && apiProjects.length > 0) {
-      return apiProjects.map((p: any) => ({
-        id: p._id,
-        name: p.title,
-        description: p.description || 'Engineering project',
-        progress: 65,
-        tasks: 10,
-        done: 6,
-        due: 'Sep 30',
-        status: 'On track',
-        tone: 'blue',
-        team: ['MC', 'AK']
-      }))
-    }
-    return localProjects
-  }, [apiProjects, localProjects])
+  const [localProjects, setLocalProjects] = useState<any[]>([])
+  const [localTasks, setLocalTasks] = useState<any[]>([])
 
   const tasksList = useMemo(() => {
-    if (apiTasks && apiTasks.length > 0) {
-      return apiTasks.map((t: any) => ({
-        id: t._id,
-        title: t.title,
-        project: typeof t.project === 'object' ? t.project?.title : 'Project',
-        priority: t.priority ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1) : 'Medium',
-        status: t.status === 'done' ? 'Done' : t.status === 'in-progress' ? 'In Progress' : 'Todo',
-        due: t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Today',
-        assignee: 'MC'
-      }))
-    }
-    return localTasks
+    const apiMapped = (apiTasks || []).map((t: any) => ({
+      id: t._id,
+      title: t.title,
+      description: t.description || '',
+      project: typeof t.project === 'object' ? t.project?.title : 'Project',
+      priority: t.priority ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1) : 'Medium',
+      status: t.status === 'done' ? 'Done' : t.status === 'in-progress' ? 'In Progress' : 'Todo',
+      due: t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Today',
+      assignee: 'MC'
+    }))
+    // Merge: API data + optimistic local-only entries
+    const apiIds = new Set(apiMapped.map((t: any) => t.id))
+    const localOnly = localTasks.filter(t => !apiIds.has(t.id))
+    return [...apiMapped, ...localOnly]
   }, [apiTasks, localTasks])
+
+  // Merge API and local projects data with live task counts & progress calculation
+  const projectsList = useMemo(() => {
+    const rawMapped = (apiProjects || []).map((p: any) => ({
+      id: p._id,
+      name: p.title,
+      description: p.description || 'Engineering project',
+      due: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Sep 30',
+      status: 'On track',
+      tone: p.color || 'blue',
+      team: ['MC', 'AK']
+    }))
+
+    const apiIds = new Set(rawMapped.map((p: any) => p.id))
+    const localOnly = localProjects.filter(p => !apiIds.has(p.id))
+    const allProjs = [...rawMapped, ...localOnly]
+
+    return allProjs.map(p => {
+      const pTasks = tasksList.filter(t => (t.project || '').toLowerCase() === (p.name || '').toLowerCase())
+      const totalTasks = pTasks.length
+      const doneTasks = pTasks.filter(t => t.status === 'Done').length
+      const progressPercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0
+
+      return {
+        ...p,
+        tasks: totalTasks,
+        done: doneTasks,
+        progress: progressPercent
+      }
+    })
+  }, [apiProjects, localProjects, tasksList])
+
 
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false)
@@ -407,15 +429,84 @@ export default function DevFlowApp() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [unreadNotifications, setUnreadNotifications] = useState(true)
 
+  const [userRole, setUserRole] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('userRole') || 'Full Stack Engineer'
+    }
+    return 'Full Stack Engineer'
+  })
+
+  // Weekly Goal
+  const [weeklyGoal, setWeeklyGoal] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('weeklyGoal')
+      return saved ? parseInt(saved, 10) : 10
+    }
+    return 10
+  })
+  const [weeklyGoalInput, setWeeklyGoalInput] = useState('')
+  const [isEditingGoal, setIsEditingGoal] = useState(false)
+
+  const weeklyProgress = useMemo(() => {
+    const now = new Date()
+    const startOfWeek = new Date(now)
+    // Monday as start of week
+    const day = now.getDay()
+    const diff = (day === 0 ? -6 : 1 - day)
+    startOfWeek.setDate(now.getDate() + diff)
+    startOfWeek.setHours(0, 0, 0, 0)
+
+    const doneTasks = tasksList.filter(t => t.status === 'Done').length
+    const inProgressTasks = tasksList.filter(t => t.status === 'In Progress').length
+    const todoTasks = tasksList.filter(t => t.status === 'Todo').length
+    const totalCreatedThisWeek = tasksList.length
+
+    const goalPercent = weeklyGoal > 0 ? Math.min(Math.round((doneTasks / weeklyGoal) * 100), 100) : 0
+
+    const dailyBreakdown = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dayLabel, i) => {
+      const d = new Date(startOfWeek)
+      d.setDate(startOfWeek.getDate() + i)
+      const isToday = d.toDateString() === now.toDateString()
+      const isPast = d < now && !isToday
+      // Distribute tasks evenly across the week for display
+      const completedSlice = isPast ? Math.round(doneTasks / 7) : isToday ? (doneTasks % 7) || 0 : 0
+      return { day: dayLabel, completed: completedSlice, isToday, isPast }
+    })
+
+    return {
+      doneTasks,
+      inProgressTasks,
+      todoTasks,
+      totalCreatedThisWeek,
+      goalPercent,
+      dailyBreakdown,
+      remaining: Math.max(weeklyGoal - doneTasks, 0),
+      isGoalMet: doneTasks >= weeklyGoal
+    }
+  }, [tasksList, weeklyGoal])
+
+  const handleSaveGoal = () => {
+    const val = parseInt(weeklyGoalInput, 10)
+    if (!isNaN(val) && val > 0) {
+      setWeeklyGoal(val)
+      if (typeof window !== 'undefined') localStorage.setItem('weeklyGoal', String(val))
+      toast.success(`Weekly goal set to ${val} tasks! 🎯`)
+    }
+    setIsEditingGoal(false)
+    setWeeklyGoalInput('')
+  }
+
   // AI Modal States
   const [isAIModalOpen, setIsAIModalOpen] = useState(false)
-  const [aiProjTitle, setAiProjTitle] = useState('E-Commerce Platform')
-  const [aiProjDesc, setAiProjDesc] = useState('Build an e-commerce platform with authentication, cart, and payment processing.')
+  const [aiProjTitle, setAiProjTitle] = useState('')
+  const [aiProjDesc, setAiProjDesc] = useState('')
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [aiGeneratedTasks, setAiGeneratedTasks] = useState<any[]>([])
   const [selectedAiIndices, setSelectedAiIndices] = useState<number[]>([])
 
   const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskDesc, setNewTaskDesc] = useState('')
+  const [isEnhancing, setIsEnhancing] = useState(false)
   const [newTaskProject, setNewTaskProject] = useState('E-Commerce Platform')
   const [newTaskPriority, setNewTaskPriority] = useState('High')
   const [newTaskDue, setNewTaskDue] = useState('Today')
@@ -441,18 +532,76 @@ export default function DevFlowApp() {
     }
   }, [dark])
 
+  const handleSelectProject = (projectTitle: string) => {
+    setSelectedProjectFilter(projectTitle)
+    setActiveTab('Tasks')
+    toast.success(`Showing tasks for "${projectTitle}"`)
+  }
+
   const filteredTasks = useMemo(() => {
     return tasksList.filter(t => {
+      const matchProject = !selectedProjectFilter || t.project.toLowerCase() === selectedProjectFilter.toLowerCase()
       const matchSearch = `${t.title} ${t.project}`.toLowerCase().includes(searchQuery.toLowerCase())
       const matchStatus = statusFilter === 'All status' || t.status === statusFilter
       const matchPriority = priorityFilter === 'All priorities' || t.priority === priorityFilter
-      return matchSearch && matchStatus && matchPriority
+      return matchProject && matchSearch && matchStatus && matchPriority
     })
-  }, [tasksList, searchQuery, statusFilter, priorityFilter])
+  }, [tasksList, searchQuery, statusFilter, priorityFilter, selectedProjectFilter])
 
   const filteredProjects = useMemo(() => {
     return projectsList.filter(p => (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (p.description || '').toLowerCase().includes(searchQuery.toLowerCase()))
   }, [projectsList, searchQuery])
+
+  const analyticsMetrics = useMemo(() => {
+    const totalTasks = tasksList.length
+    const doneTasks = tasksList.filter(t => t.status === 'Done').length
+    const inProgressTasks = tasksList.filter(t => t.status === 'In Progress').length
+    const todoTasks = tasksList.filter(t => t.status === 'Todo').length
+
+    const completionRate = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0
+
+    const highPriority = tasksList.filter(t => t.priority === 'High' || t.priority === 'Urgent').length
+    const mediumPriority = tasksList.filter(t => t.priority === 'Medium').length
+    const lowPriority = tasksList.filter(t => t.priority === 'Low').length
+
+    const statusChartData = [
+      { name: 'Completed', count: doneTasks },
+      { name: 'In Progress', count: inProgressTasks },
+      { name: 'Todo', count: todoTasks }
+    ]
+
+    const priorityChartData = [
+      { priority: 'High / Urgent', count: highPriority },
+      { priority: 'Medium', count: mediumPriority },
+      { priority: 'Low', count: lowPriority }
+    ]
+
+    const projectPerformance = projectsList.map(p => {
+      const pTasks = tasksList.filter(t => t.project.toLowerCase() === p.name.toLowerCase())
+      const pDone = pTasks.filter(t => t.status === 'Done').length
+      const pTotal = pTasks.length
+      const pRate = pTotal > 0 ? Math.round((pDone / pTotal) * 100) : 0
+      return {
+        id: p.id,
+        name: p.name,
+        done: pDone,
+        total: pTotal,
+        rate: pRate
+      }
+    })
+
+    return {
+      totalTasks,
+      doneTasks,
+      inProgressTasks,
+      todoTasks,
+      completionRate,
+      statusChartData,
+      priorityChartData,
+      projectPerformance
+    }
+  }, [tasksList, projectsList])
+
 
   // Show spinner while auth initializing or redirecting
   if (!isInitialized || !user) {
@@ -517,36 +666,89 @@ export default function DevFlowApp() {
     }
   }
 
-  // Import AI tasks into workspace
+  // AI Task Enhancer
+  const handleEnhanceTaskWithAI = async () => {
+    if (!newTaskTitle.trim()) {
+      toast.error('Please enter a task title first')
+      return
+    }
+    setIsEnhancing(true)
+    try {
+      const enhanced = await enhanceTaskMutation.mutateAsync({
+        title: newTaskTitle,
+        description: newTaskDesc
+      })
+      if (enhanced) {
+        if (enhanced.title) setNewTaskTitle(enhanced.title)
+        if (enhanced.description) setNewTaskDesc(enhanced.description)
+        if (enhanced.priority) {
+          const capPriority = enhanced.priority.charAt(0).toUpperCase() + enhanced.priority.slice(1)
+          setNewTaskPriority(capPriority)
+        }
+        toast.success('✨ Task enhanced by AI!')
+      }
+    } catch (err) {
+      toast.error('AI Enhancement service fallback used')
+    } finally {
+      setIsEnhancing(false)
+    }
+  }
+
+  // Import AI tasks into workspace & persist in MongoDB real-time
   const handleImportAITasks = () => {
-    const tasksToImport = selectedAiIndices.map(i => aiGeneratedTasks[i])
+    const tasksToImport = aiGeneratedTasks.filter((_, i) => selectedAiIndices.includes(i))
     if (!tasksToImport.length) return
 
-    const newTasks = tasksToImport.map((t, index) => ({
-      id: `ai_${Date.now()}_${index}`,
-      title: t.title,
-      project: aiProjTitle,
-      priority: t.priority ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1) : 'Medium',
-      status: 'Todo',
-      due: 'Sep 15',
-      assignee: user?.name ? user.name.substring(0, 2).toUpperCase() : 'MC'
-    }))
+    // Match selected project from API
+    let targetProject = apiProjects?.find((p: any) => p.title?.toLowerCase() === aiProjTitle.toLowerCase())
+    if (!targetProject && apiProjects && apiProjects.length > 0) {
+      targetProject = apiProjects[0]
+    }
+
+    const newTasks = tasksToImport.map((t, index) => {
+      if (targetProject) {
+        createTaskMutation.mutate({
+          title: t.title,
+          description: t.description || '',
+          project: targetProject._id as any,
+          priority: (t.priority || 'medium').toLowerCase() as any,
+          status: 'todo'
+        })
+      }
+
+      return {
+        id: `ai_${Date.now()}_${index}`,
+        title: t.title,
+        description: t.description || '',
+        project: targetProject ? targetProject.title : aiProjTitle,
+        priority: t.priority ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1) : 'Medium',
+        status: 'Todo',
+        due: 'Sep 15',
+        assignee: user?.name ? user.name.substring(0, 2).toUpperCase() : 'MC'
+      }
+    })
 
     setLocalTasks([...newTasks, ...localTasks])
     setIsAIModalOpen(false)
     setAiGeneratedTasks([])
-    toast.success(`Imported ${newTasks.length} AI generated tasks!`)
+    toast.success(`Imported & Saved ${newTasks.length} AI tasks to database!`)
   }
 
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTaskTitle.trim()) return
 
-    // Persist to backend API if projects exist
-    if (apiProjects && apiProjects.length > 0) {
+    // Match project from API
+    let targetProject = apiProjects?.find((p: any) => p.title?.toLowerCase() === newTaskProject.toLowerCase())
+    if (!targetProject && apiProjects && apiProjects.length > 0) {
+      targetProject = apiProjects[0]
+    }
+
+    if (targetProject) {
       createTaskMutation.mutate({
         title: newTaskTitle,
-        project: apiProjects[0]._id as any,
+        description: newTaskDesc,
+        project: targetProject._id as any,
         priority: newTaskPriority.toLowerCase() as any,
         status: 'todo'
       })
@@ -555,7 +757,8 @@ export default function DevFlowApp() {
     const newTask = {
       id: `t_${Date.now()}`,
       title: newTaskTitle,
-      project: newTaskProject,
+      description: newTaskDesc,
+      project: targetProject ? targetProject.title : newTaskProject,
       priority: newTaskPriority,
       status: 'Todo',
       due: newTaskDue || 'Today',
@@ -564,8 +767,11 @@ export default function DevFlowApp() {
 
     setLocalTasks([newTask, ...localTasks])
     setNewTaskTitle('')
+    setNewTaskDesc('')
     setIsTaskModalOpen(false)
+    toast.success('Task created successfully!')
   }
+
 
   const handleAddProject = (e: React.FormEvent) => {
     e.preventDefault()
@@ -597,6 +803,20 @@ export default function DevFlowApp() {
     setIsProjectModalOpen(false)
   }
 
+  const handleDeleteProject = (id: string) => {
+    // Delete from backend if it's a MongoDB ID
+    if (id.length > 10) {
+      deleteProjectMutation.mutate(id, {
+        onSuccess: () => toast.success('Project deleted!'),
+        onError: () => toast.error('Failed to delete project')
+      })
+    } else {
+      // Remove from local state (optimistic local-only entries)
+      setLocalProjects(prev => prev.filter(p => p.id !== id))
+      toast.success('Project deleted!')
+    }
+  }
+
   const userName = user?.name ? user.name.split(' ')[0] : 'Mahesh'
 
   return (
@@ -610,6 +830,7 @@ export default function DevFlowApp() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           onOpenProfile={() => setIsProfileModalOpen(true)}
+          userRole={userRole}
         />
 
         {mobileOpen && (
@@ -703,69 +924,95 @@ export default function DevFlowApp() {
                 </section>
 
                 <section className="mt-6 grid gap-6 xl:grid-cols-[1.65fr_1fr]">
+                  {/* Recent Activity */}
                   <article className="min-w-0 rounded-xl border border-[#222228] bg-[#151519] p-5 shadow-sm md:p-6">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-5">
                       <div>
-                        <h2 className="font-semibold text-white">Productivity overview</h2>
-                        <p className="mt-1 text-xs text-zinc-400">Your activity over the last 7 days</p>
+                        <h2 className="font-semibold text-white">Recent Activity</h2>
+                        <p className="mt-1 text-xs text-zinc-400">What&apos;s happening across your workspace</p>
+                      </div>
+                      <button onClick={() => setActiveTab('Tasks')} className="text-xs font-medium text-zinc-300 hover:text-white hover:underline">View all</button>
+                    </div>
+
+                    <div className="flex flex-col divide-y divide-[#222228]">
+                      {tasksList.length === 0 ? (
+                        <p className="text-xs text-zinc-500 py-6 text-center">No activity yet. Create a project to get started!</p>
+                      ) : (
+                        tasksList.slice(0, 6).map((t, i) => {
+                          const icons = [CheckCircle2, ClipboardCheck, TrendingUp, FolderPlus, Clock3, Users]
+                          const Icon = icons[i % icons.length]
+                          const actions = ['Working on', 'Created task', 'Updated', 'Added to project', 'Pending review', 'Assigned']
+                          const action = actions[i % actions.length]
+                          const timeLabels = ['Just now', '5 min ago', '12 min ago', '1 hr ago', '3 hrs ago', 'Yesterday']
+                          return (
+                            <div key={t.id} className="flex gap-3 py-3.5 first:pt-0 last:pb-0">
+                              <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-[#222228] text-white">
+                                <Icon size={14} />
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs leading-5">
+                                  <span className="text-zinc-400">{action} </span>
+                                  <span className="font-semibold text-white">{t.title}</span>
+                                </p>
+                                <div className="mt-0.5 flex items-center gap-2">
+                                  <p className="text-[11px] text-zinc-500">{timeLabels[i % timeLabels.length]}</p>
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                    t.status === 'Done' ? 'bg-emerald-950/60 text-emerald-400' :
+                                    t.status === 'In Progress' ? 'bg-blue-950/60 text-blue-400' :
+                                    'bg-zinc-800 text-zinc-400'
+                                  }`}>{t.status}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  </article>
+
+                  {/* Overall Progress */}
+                  <article className="rounded-xl border border-[#222228] bg-[#151519] p-5 shadow-sm md:p-6">
+                    <div className="flex items-center justify-between mb-1">
+                      <div>
+                        <h2 className="font-semibold text-white">Overall Progress</h2>
+                        <p className="mt-1 text-xs text-zinc-400">Task completion over the last 7 days</p>
                       </div>
                       <button className="flex items-center gap-1.5 rounded-lg border border-[#2c2c34] bg-[#1a1a20] px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-white">
                         Last 7 days <ChevronDown size={14} />
                       </button>
                     </div>
 
-                    <div className="mt-6 h-[235px] w-full">
+                    <div className="mt-4 h-[235px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                           <defs>
-                            <linearGradient id="completed" x1="0" x2="0" y1="0" y2="1">
-                              <stop offset="0%" stopColor="#ffffff" stopOpacity={0.25} />
-                              <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
+                            <linearGradient id="completedGrad" x1="0" x2="0" y1="0" y2="1">
+                              <stop offset="0%" stopColor="#10b981" stopOpacity={0.3} />
+                              <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="createdGrad" x1="0" x2="0" y1="0" y2="1">
+                              <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.2} />
+                              <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
                             </linearGradient>
                           </defs>
                           <CartesianGrid vertical={false} stroke="#222228" strokeDasharray="3 3" />
                           <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#71717a' }} />
                           <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#71717a' }} />
                           <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #2c2c34', background: '#18181f', fontSize: 12, color: '#ffffff' }} />
-                          <Area type="monotone" dataKey="created" stroke="#71717a" fill="none" strokeWidth={2} strokeDasharray="5 5" />
-                          <Area type="monotone" dataKey="completed" stroke="#ffffff" fill="url(#completed)" strokeWidth={2.5} />
+                          <Area type="monotone" dataKey="created" name="Created" stroke="#8b5cf6" fill="url(#createdGrad)" strokeWidth={2} strokeDasharray="5 5" />
+                          <Area type="monotone" dataKey="completed" name="Completed" stroke="#10b981" fill="url(#completedGrad)" strokeWidth={2.5} />
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
 
                     <div className="flex gap-5 text-xs text-zinc-400 pt-3 border-t border-[#222228]">
-                      <span className="flex items-center gap-2"><i className="size-2 rounded-full bg-white" />Tasks completed</span>
-                      <span className="flex items-center gap-2"><i className="size-2 rounded-full bg-zinc-500" />Tasks created</span>
+                      <span className="flex items-center gap-2"><i className="size-2 rounded-full bg-emerald-500" />Tasks completed</span>
+                      <span className="flex items-center gap-2"><i className="size-2 rounded-full bg-purple-500" />Tasks created</span>
                     </div>
                   </article>
 
-                  <article className="rounded-xl border border-[#222228] bg-[#151519] p-5 shadow-sm md:p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h2 className="font-semibold text-white">Recent activity</h2>
-                        <p className="mt-1 text-xs text-zinc-400">What&apos;s happening across your workspace</p>
-                      </div>
-                      <button className="text-xs font-medium text-zinc-300 hover:text-white hover:underline">View all</button>
-                    </div>
-
-                    <div className="mt-5 flex flex-col divide-y divide-[#222228]">
-                      {activities.map(([action, name, time, Icon]) => (
-                        <div key={name} className="flex gap-3 py-3.5 first:pt-0 last:pb-0">
-                          <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-[#222228] text-white">
-                            <Icon size={14} />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs leading-5">
-                              <span className="text-zinc-400">{action} </span>
-                              <span className="font-semibold text-white">{name}</span>
-                            </p>
-                            <p className="mt-0.5 text-[11px] text-zinc-500">{time}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </article>
                 </section>
+
 
                 <section className="mt-8">
                   <div className="mb-4 flex items-center justify-between">
@@ -791,9 +1038,13 @@ export default function DevFlowApp() {
                           setAiProjDesc(proj.description)
                           setIsAIModalOpen(true)
                         }}
+                        onDelete={handleDeleteProject}
+                        onSelectProject={handleSelectProject}
                       />
+
                     ))}
                   </div>
+
                 </section>
 
                 <section className="mt-8 rounded-xl border border-[#222228] bg-[#151519] shadow-sm">
@@ -915,7 +1166,10 @@ export default function DevFlowApp() {
                         setAiProjDesc(proj.description)
                         setIsAIModalOpen(true)
                       }}
+                      onDelete={handleDeleteProject}
+                      onSelectProject={handleSelectProject}
                     />
+
                   ))}
                 </div>
               </div>
@@ -945,7 +1199,23 @@ export default function DevFlowApp() {
                   </div>
                 </div>
 
+                {selectedProjectFilter && (
+                  <div className="flex items-center justify-between bg-purple-950/40 border border-purple-800/40 px-4 py-2 rounded-xl text-xs text-purple-300">
+                    <span className="flex items-center gap-2 font-medium">
+                      <FolderKanban size={15} className="text-purple-400" />
+                      Showing tasks for project: <strong className="text-white font-bold">{selectedProjectFilter}</strong>
+                    </span>
+                    <button 
+                      onClick={() => setSelectedProjectFilter(null)} 
+                      className="text-zinc-400 hover:text-white flex items-center gap-1 font-semibold hover:underline"
+                    >
+                      <X size={14} /> Clear filter (Show all tasks)
+                    </button>
+                  </div>
+                )}
+
                 <div className="rounded-xl border border-[#222228] bg-[#151519] p-4 flex flex-wrap items-center gap-3">
+
                   <div className="relative flex-1 min-w-[200px]">
                     <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                     <input 
@@ -1010,43 +1280,208 @@ export default function DevFlowApp() {
             {activeTab === 'Analytics' && (
               <div className="space-y-6">
                 <div>
-                  <h1 className="text-2xl font-bold text-white">Engineering Analytics</h1>
-                  <p className="text-xs text-zinc-400 mt-1">Velocity, sprint throughput, and developer productivity indicators.</p>
+                  <h1 className="text-2xl font-bold text-white">Real-Time Engineering Analytics</h1>
+                  <p className="text-xs text-zinc-400 mt-1">Live metrics, project health, and task completion velocity across your workspace.</p>
                 </div>
 
+                {/* 4 Summary Stat Cards */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-xl border border-[#222228] bg-[#151519] p-5 shadow-sm">
+                    <p className="text-xs font-medium text-zinc-400">Total Projects</p>
+                    <p className="mt-2 text-3xl font-bold text-white">{projectsList.length}</p>
+                    <p className="mt-1 text-[11px] text-purple-400 font-medium">Active workspace projects</p>
+                  </div>
+
+                  <div className="rounded-xl border border-[#222228] bg-[#151519] p-5 shadow-sm">
+                    <p className="text-xs font-medium text-zinc-400">Total Tasks</p>
+                    <p className="mt-2 text-3xl font-bold text-white">{analyticsMetrics.totalTasks}</p>
+                    <p className="mt-1 text-[11px] text-blue-400 font-medium">{analyticsMetrics.doneTasks} Completed</p>
+                  </div>
+
+                  <div className="rounded-xl border border-[#222228] bg-[#151519] p-5 shadow-sm">
+                    <p className="text-xs font-medium text-zinc-400">Completion Rate</p>
+                    <p className="mt-2 text-3xl font-bold text-emerald-400">{analyticsMetrics.completionRate}%</p>
+                    <p className="mt-1 text-[11px] text-emerald-500 font-medium">Overall throughput</p>
+                  </div>
+
+                  <div className="rounded-xl border border-[#222228] bg-[#151519] p-5 shadow-sm">
+                    <p className="text-xs font-medium text-zinc-400">Active Tasks</p>
+                    <p className="mt-2 text-3xl font-bold text-amber-400">{analyticsMetrics.inProgressTasks + analyticsMetrics.todoTasks}</p>
+                    <p className="mt-1 text-[11px] text-amber-500 font-medium">{analyticsMetrics.inProgressTasks} In Progress</p>
+                  </div>
+                </div>
+
+                {/* 2 Live Charts */}
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="rounded-xl border border-[#222228] bg-[#151519] p-5">
-                    <h3 className="text-sm font-semibold text-white mb-4">Sprint Velocity (Tasks Completed)</h3>
+                    <h3 className="text-sm font-semibold text-white mb-4">Task Status Breakdown</h3>
                     <div className="h-[220px]">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={analyticsData}>
+                        <BarChart data={analyticsMetrics.statusChartData}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#222228" vertical={false} />
-                          <XAxis dataKey="week" stroke="#71717a" fontSize={11} />
+                          <XAxis dataKey="name" stroke="#71717a" fontSize={11} />
                           <YAxis stroke="#71717a" fontSize={11} />
                           <Tooltip contentStyle={{ background: '#18181f', border: '1px solid #2c2c34', borderRadius: 8, fontSize: 12 }} />
-                          <Bar dataKey="velocity" fill="#ffffff" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="count" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-[#222228] bg-[#151519] p-5">
-                    <h3 className="text-sm font-semibold text-white mb-4">Deep Work Hours per Sprint</h3>
+                    <h3 className="text-sm font-semibold text-white mb-4">Priority Distribution</h3>
                     <div className="h-[220px]">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={analyticsData}>
+                        <BarChart data={analyticsMetrics.priorityChartData}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#222228" vertical={false} />
-                          <XAxis dataKey="week" stroke="#71717a" fontSize={11} />
+                          <XAxis dataKey="priority" stroke="#71717a" fontSize={11} />
                           <YAxis stroke="#71717a" fontSize={11} />
                           <Tooltip contentStyle={{ background: '#18181f', border: '1px solid #2c2c34', borderRadius: 8, fontSize: 12 }} />
-                          <Bar dataKey="hours" fill="#71717a" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="count" fill="#3b82f6" radius={[6, 6, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Project Performance Breakdown List */}
+                <div className="rounded-xl border border-[#222228] bg-[#151519] p-5">
+                  <h3 className="text-sm font-semibold text-white mb-4">Project Completion Health</h3>
+                  {analyticsMetrics.projectPerformance.length === 0 ? (
+                    <p className="text-xs text-zinc-500 py-4 text-center">No projects in workspace yet. Create a project to track analytics!</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {analyticsMetrics.projectPerformance.map(p => (
+                        <div key={p.id} className="p-3 rounded-lg bg-[#0e0e11] border border-[#222228] flex flex-col gap-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-white">{p.name}</span>
+                            <span className="text-zinc-400 font-medium">{p.done} / {p.total} tasks ({p.rate}%)</span>
+                          </div>
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-[#222228]">
+                            <div 
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                p.rate >= 80 ? 'bg-emerald-500' : p.rate >= 40 ? 'bg-amber-500' : 'bg-purple-500'
+                              }`} 
+                              style={{ width: `${p.rate}%` }} 
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Weekly Goal Card */}
+                <div className="rounded-xl border border-[#222228] bg-[#151519] p-5">
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-2">
+                      <span className="grid size-8 place-items-center rounded-lg bg-gradient-to-br from-purple-600 to-blue-500">
+                        <Target size={16} className="text-white" />
+                      </span>
+                      <div>
+                        <h3 className="text-sm font-semibold text-white">Weekly Goal Tracker</h3>
+                        <p className="text-[11px] text-zinc-400">Target: <span className="text-purple-400 font-bold">{weeklyGoal} tasks</span> completed this week</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { setIsEditingGoal(true); setWeeklyGoalInput(String(weeklyGoal)) }}
+                      className="px-3 py-1.5 rounded-lg border border-[#2c2c34] bg-[#0e0e11] text-[11px] font-medium text-zinc-300 hover:text-white hover:border-purple-500 transition-colors"
+                    >
+                      Edit Goal
+                    </button>
+                  </div>
+
+                  {/* Edit Goal inline input */}
+                  {isEditingGoal && (
+                    <div className="mb-5 flex items-center gap-3 p-3 rounded-lg bg-[#0e0e11] border border-purple-800/50">
+                      <label className="text-xs font-medium text-zinc-400 whitespace-nowrap">New weekly target:</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={200}
+                        value={weeklyGoalInput}
+                        onChange={e => setWeeklyGoalInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleSaveGoal()}
+                        className="flex-1 h-8 px-3 rounded-lg border border-[#2c2c34] bg-[#151519] text-xs text-white outline-none focus:border-purple-500"
+                        placeholder="e.g. 15"
+                        autoFocus
+                      />
+                      <button onClick={handleSaveGoal} className="px-3 py-1.5 rounded-lg bg-purple-600 text-[11px] font-semibold text-white hover:bg-purple-500">Save</button>
+                      <button onClick={() => setIsEditingGoal(false)} className="px-3 py-1.5 rounded-lg border border-[#2c2c34] text-[11px] font-medium text-zinc-400 hover:text-white">Cancel</button>
+                    </div>
+                  )}
+
+                  {/* Big Progress Ring-style stat */}
+                  <div className="flex items-center gap-6 mb-5">
+                    <div className="flex flex-col items-center justify-center size-24 rounded-full border-4 border-[#222228] shrink-0" style={{ background: `conic-gradient(${weeklyProgress.isGoalMet ? '#10b981' : '#8b5cf6'} ${weeklyProgress.goalPercent * 3.6}deg, #222228 0deg)` }}>
+                      <div className="flex flex-col items-center justify-center size-[76px] rounded-full bg-[#151519]">
+                        <span className={`text-xl font-bold ${weeklyProgress.isGoalMet ? 'text-emerald-400' : 'text-white'}`}>{weeklyProgress.goalPercent}%</span>
+                        <span className="text-[9px] text-zinc-500">of goal</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-3 flex-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-zinc-400">Completed</span>
+                        <span className="font-bold text-emerald-400">{weeklyProgress.doneTasks} tasks</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-zinc-400">Remaining to goal</span>
+                        <span className={`font-bold ${weeklyProgress.isGoalMet ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {weeklyProgress.isGoalMet ? '🎉 Goal Met!' : `${weeklyProgress.remaining} tasks`}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-zinc-400">In Progress</span>
+                        <span className="font-bold text-blue-400">{weeklyProgress.inProgressTasks} tasks</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-zinc-400">Todo</span>
+                        <span className="font-bold text-zinc-400">{weeklyProgress.todoTasks} tasks</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Full-width progress bar */}
+                  <div className="mb-4">
+                    <div className="flex justify-between text-[11px] text-zinc-500 mb-1.5">
+                      <span>Progress towards {weeklyGoal} task goal</span>
+                      <span>{weeklyProgress.doneTasks}/{weeklyGoal}</span>
+                    </div>
+                    <div className="h-3 w-full overflow-hidden rounded-full bg-[#222228]">
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ${weeklyProgress.isGoalMet ? 'bg-emerald-500' : 'bg-gradient-to-r from-purple-600 to-blue-500'}`}
+                        style={{ width: `${weeklyProgress.goalPercent}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Daily bar chart */}
+                  <div>
+                    <p className="text-[11px] text-zinc-500 mb-3">Daily breakdown (Mon – Sun)</p>
+                    <div className="flex items-end gap-2 h-16">
+                      {weeklyProgress.dailyBreakdown.map((d, i) => {
+                        const barH = weeklyGoal > 0 ? Math.min(Math.round((d.completed / Math.ceil(weeklyGoal / 7)) * 100), 100) : 0
+                        return (
+                          <div key={i} className="flex flex-1 flex-col items-center gap-1">
+                            <div className="w-full flex flex-col justify-end" style={{ height: '48px' }}>
+                              <div
+                                className={`w-full rounded-t transition-all duration-500 ${
+                                  d.isToday ? 'bg-purple-500' : d.isPast && d.completed > 0 ? 'bg-emerald-500/70' : 'bg-[#222228]'
+                                }`}
+                                style={{ height: d.completed > 0 ? `${Math.max(barH, 8)}%` : '6px' }}
+                              />
+                            </div>
+                            <span className={`text-[10px] font-medium ${d.isToday ? 'text-purple-400' : 'text-zinc-500'}`}>{d.day}</span>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 </div>
               </div>
             )}
+
+
 
             {/* TAB 5: SETTINGS VIEW */}
             {activeTab === 'Settings' && (
@@ -1057,12 +1492,17 @@ export default function DevFlowApp() {
                 </div>
 
                 <div className="rounded-xl border border-[#222228] bg-[#151519] p-6 space-y-6">
-                  <div className="flex items-center gap-4 pb-6 border-b border-[#222228]">
-                    <Avatar initials="MC" />
-                    <div>
-                      <h3 className="text-base font-semibold text-white">{user?.name || 'Mahesh'}</h3>
-                      <p className="text-xs text-zinc-400">{user?.email || 'developer@devflow.io'}</p>
+                  <div className="flex items-center justify-between pb-6 border-b border-[#222228]">
+                    <div className="flex items-center gap-4">
+                      <Avatar initials="MC" />
+                      <div>
+                        <h3 className="text-base font-semibold text-white">{user?.name || 'Mahesh'}</h3>
+                        <p className="text-xs text-zinc-400">{user?.email || 'developer@devflow.io'}</p>
+                      </div>
                     </div>
+                    <span className="rounded-full bg-purple-950/60 border border-purple-800/40 px-3 py-1 text-xs text-purple-300 font-medium">
+                      {userRole}
+                    </span>
                   </div>
 
                   <div className="space-y-4">
@@ -1072,10 +1512,56 @@ export default function DevFlowApp() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-zinc-400 mb-1">Role / Specialization</label>
-                      <input type="text" defaultValue="Full Stack Engineer" className="w-full h-9 px-3 rounded-lg border border-[#2c2c34] bg-[#0e0e11] text-xs text-white outline-none" />
+                      <select 
+                        value={userRole} 
+                        onChange={(e) => {
+                          setUserRole(e.target.value)
+                          if (typeof window !== 'undefined') localStorage.setItem('userRole', e.target.value)
+                        }}
+                        className="w-full h-9 px-3 rounded-lg border border-[#2c2c34] bg-[#0e0e11] text-xs text-white outline-none appearance-none cursor-pointer focus:border-zinc-500"
+                      >
+                        <optgroup label="Engineering">
+                          <option>Full Stack Engineer</option>
+                          <option>Frontend Developer</option>
+                          <option>Backend Developer</option>
+                          <option>Mobile Developer</option>
+                          <option>DevOps Engineer</option>
+                          <option>Site Reliability Engineer (SRE)</option>
+                          <option>Cloud Architect</option>
+                          <option>Embedded Systems Engineer</option>
+                        </optgroup>
+                        <optgroup label="Data & AI">
+                          <option>Data Scientist</option>
+                          <option>Machine Learning Engineer</option>
+                          <option>AI / LLM Engineer</option>
+                          <option>Data Analyst</option>
+                          <option>Data Engineer</option>
+                        </optgroup>
+                        <optgroup label="Design & Product">
+                          <option>UI / UX Designer</option>
+                          <option>Product Manager</option>
+                          <option>Product Designer</option>
+                        </optgroup>
+                        <optgroup label="Security & QA">
+                          <option>Cybersecurity Engineer</option>
+                          <option>QA / Test Engineer</option>
+                          <option>Penetration Tester</option>
+                        </optgroup>
+                        <optgroup label="Management">
+                          <option>Engineering Manager</option>
+                          <option>Tech Lead</option>
+                          <option>CTO / Technical Co-Founder</option>
+                        </optgroup>
+                        <optgroup label="Other">
+                          <option>Freelancer</option>
+                          <option>Student / Intern</option>
+                          <option>Researcher</option>
+                          <option>Other</option>
+                        </optgroup>
+                      </select>
                     </div>
                     <button 
-                      onClick={() => toast.success('Settings saved!')}
+                      onClick={() => toast.success(`Profile & Role (${userRole}) updated!`)}
                       className="px-4 py-2 rounded-lg bg-white text-xs font-semibold text-black hover:bg-zinc-200"
                     >
                       Save Changes
@@ -1273,8 +1759,8 @@ export default function DevFlowApp() {
               <Avatar initials="MC" />
               <h4 className="mt-3 text-sm font-semibold text-white">{user?.name || 'Mahesh'}</h4>
               <p className="text-xs text-zinc-400">{user?.email || 'developer@devflow.io'}</p>
-              <div className="mt-3 rounded-full bg-zinc-800 px-3 py-1 text-[11px] text-zinc-300 font-medium">
-                {user?.role || 'Developer'}
+              <div className="mt-3 rounded-full bg-purple-950/60 border border-purple-800/40 px-3 py-1 text-[11px] text-purple-300 font-medium">
+                {userRole}
               </div>
             </div>
             <div className="mt-6 pt-4 border-t border-[#222228] flex justify-end">
@@ -1306,7 +1792,17 @@ export default function DevFlowApp() {
 
             <form onSubmit={handleAddTask} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1">Task Title</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-zinc-400">Task Title</label>
+                  <button 
+                    type="button"
+                    onClick={handleEnhanceTaskWithAI}
+                    disabled={isEnhancing}
+                    className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-800/40"
+                  >
+                    {isEnhancing ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} ✨ Enhance with AI
+                  </button>
+                </div>
                 <input 
                   type="text" 
                   required
@@ -1314,6 +1810,17 @@ export default function DevFlowApp() {
                   onChange={e => setNewTaskTitle(e.target.value)}
                   placeholder="e.g., Integrate OAuth authentication"
                   className="w-full h-9 px-3 rounded-lg border border-[#2c2c34] bg-[#0e0e11] text-xs text-white outline-none focus:border-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1">Description (Optional)</label>
+                <textarea 
+                  rows={3}
+                  value={newTaskDesc} 
+                  onChange={e => setNewTaskDesc(e.target.value)}
+                  placeholder="Add details, bullet points, or instructions..."
+                  className="w-full p-2.5 rounded-lg border border-[#2c2c34] bg-[#0e0e11] text-xs text-white outline-none focus:border-white resize-none"
                 />
               </div>
 
@@ -1341,6 +1848,7 @@ export default function DevFlowApp() {
                     <option value="Low">Low</option>
                     <option value="Medium">Medium</option>
                     <option value="High">High</option>
+                    <option value="Urgent">Urgent</option>
                   </select>
                 </div>
 

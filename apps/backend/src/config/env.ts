@@ -8,4 +8,6 @@ export const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh_sec
 export const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
 export const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 export const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+export const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 export const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+

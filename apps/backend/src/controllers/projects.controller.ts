@@ -3,6 +3,7 @@ import { Project } from '../models/Project';
 import { Task } from '../models/Task';
 import { User } from '../models/User';
 import { AppError } from '../middleware/errorHandler';
+import { suggestTasks } from '../services/ai.service';
 
 export const getProjects = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -27,11 +28,33 @@ export const createProject = async (req: Request, res: Response, next: NextFunct
     const project = await Project.create({
       title, description, color, emoji, owner: req.user?._id
     });
+
+    // Auto-generate initial AI tasks for the project
+    try {
+      const generatedTasks = await suggestTasks(title, description, 5);
+      if (Array.isArray(generatedTasks) && generatedTasks.length > 0) {
+        const tasksToCreate = generatedTasks.map((t: any, index: number) => ({
+          title: t.title,
+          description: t.description || '',
+          project: project._id,
+          createdBy: req.user?._id,
+          priority: (t.priority || 'medium').toLowerCase(),
+          status: 'todo',
+          tags: t.tags || [],
+          order: index
+        }));
+        await Task.insertMany(tasksToCreate);
+      }
+    } catch (aiErr) {
+      console.error('Auto AI Task Generation Error:', aiErr);
+    }
+
     res.status(201).json({ success: true, project });
   } catch (err) {
     next(err);
   }
 };
+
 
 export const getProject = async (req: Request, res: Response, next: NextFunction) => {
   try {

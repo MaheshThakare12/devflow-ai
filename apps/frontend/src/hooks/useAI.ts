@@ -9,3 +9,13 @@ export function useSuggestTasks() {
     },
   });
 }
+
+export function useEnhanceTask() {
+  return useMutation({
+    mutationFn: async (data: { title: string; description?: string }) => {
+      const res = await api.post('/ai/enhance-task', data);
+      return res.data.task || null;
+    },
+  });
+}
+
