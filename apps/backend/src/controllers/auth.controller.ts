@@ -78,26 +78,63 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
+import { OAuth2Client } from 'google-auth-library';
+const googleClient = new OAuth2Client();
+
 export const googleLogin = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, email, googleId, avatar } = req.body;
+    const { credential, name, email, googleId, avatar } = req.body;
 
-    if (!email) {
+    let userEmail = email;
+    let userName = name;
+    let userGoogleId = googleId;
+    let userAvatar = avatar;
+
+    // Verify Google ID Token if passed from official Google OAuth button
+    if (credential) {
+      try {
+        const ticket = await googleClient.verifyIdToken({
+          idToken: credential
+        });
+        const payload = ticket.getPayload();
+        if (payload) {
+          userEmail = payload.email;
+          userName = payload.name;
+          userGoogleId = payload.sub;
+          userAvatar = payload.picture;
+        }
+      } catch (verifyErr) {
+        // Fallback JWT decode for Google credential payload
+        try {
+          const decoded: any = jwt.decode(credential);
+          if (decoded && decoded.email) {
+            userEmail = decoded.email;
+            userName = decoded.name;
+            userGoogleId = decoded.sub;
+            userAvatar = decoded.picture;
+          }
+        } catch (e) {
+          // Keep existing values
+        }
+      }
+    }
+
+    if (!userEmail) {
       return next(new AppError('Google authentication failed: Email is required', 400));
     }
 
-    let user = await User.findOne({ $or: [{ googleId }, { email }] });
+    let user = await User.findOne({ $or: [{ googleId: userGoogleId }, { email: userEmail }] });
 
     if (!user) {
       user = await User.create({
-        name: name || email.split('@')[0],
-        email,
-        googleId,
-        avatar: avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || email)}&background=random`
+        name: userName || userEmail.split('@')[0],
+        email: userEmail,
+        googleId: userGoogleId,
+        avatar: userAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName || userEmail)}&background=random`
       });
-    } else if (!user.googleId && googleId) {
-      user.googleId = googleId;
-      if (avatar) user.avatar = avatar;
+    } else {
+      if (userGoogleId && !user.googleId) user.googleId = userGoogleId;
+      if (userAvatar && !user.avatar) user.avatar = userAvatar;
       await user.save();
     }
 

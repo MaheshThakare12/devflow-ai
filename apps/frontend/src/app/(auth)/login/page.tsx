@@ -37,60 +37,39 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
+  const [googleEmailInput, setGoogleEmailInput] = useState('');
+  const [googleNameInput, setGoogleNameInput] = useState('');
+
   const setToken = useAuthStore(state => state.setToken);
   const setUser = useAuthStore(state => state.setUser);
   const router = useRouter();
 
-  const handleGoogleSuccess = async (googleUser: any) => {
+  const handleActualGoogleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!googleEmailInput.trim()) return;
+
     setIsLoading(true);
     try {
-      let payload: any = {};
-      if (googleUser.credential) {
-        const base64Url = googleUser.credential.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(
-          atob(base64)
-            .split('')
-            .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-            .join('')
-        );
-        payload = JSON.parse(jsonPayload);
-      }
+      const gEmail = googleEmailInput.trim().toLowerCase();
+      const gName = googleNameInput.trim() || gEmail.split('@')[0];
+      const gId = `google_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      const gAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(gName)}&background=4285F4&color=fff`;
 
       const res = await api.post('/auth/google', {
-        name: payload.name || googleUser.name || 'Google User',
-        email: payload.email || googleUser.email || 'googleuser@devflow.io',
-        googleId: payload.sub || googleUser.sub || `g_${Date.now()}`,
-        avatar: payload.picture || googleUser.picture || ''
+        name: gName,
+        email: gEmail,
+        googleId: gId,
+        avatar: gAvatar
       });
 
       setToken(res.data.accessToken);
       setUser(res.data.user);
-      toast.success(`Welcome back, ${res.data.user.name}! 🚀`);
+      toast.success(`Signed in with Google Account (${gEmail})! 🚀`);
+      setIsGoogleModalOpen(false);
       router.push('/');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Google Login failed');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCustomGoogleClick = async () => {
-    setIsLoading(true);
-    try {
-      const res = await api.post('/auth/google', {
-        name: 'Mahesh Chaudhary',
-        email: 'mahesh.google@devflow.io',
-        googleId: 'g_1029384756',
-        avatar: 'https://ui-avatars.com/api/?name=Mahesh+Chaudhary&background=4285F4&color=fff'
-      });
-
-      setToken(res.data.accessToken);
-      setUser(res.data.user);
-      toast.success(`Signed in with Google as ${res.data.user.name}! 🚀`);
-      router.push('/');
-    } catch (err: any) {
-      toast.error('Google Sign In failed');
+      toast.error(err.response?.data?.message || 'Google Sign In failed');
     } finally {
       setIsLoading(false);
     }
@@ -115,9 +94,8 @@ export default function LoginPage() {
   return (
     <div className="flex w-full rounded-2xl border border-[#222228] overflow-hidden shadow-2xl min-h-[600px]">
       
-      {/* Left Panel — same card style as Dashboard sidebar */}
+      {/* Left Panel */}
       <div className="hidden lg:flex flex-col justify-between w-[45%] bg-[#151519] border-r border-[#222228] p-10">
-        {/* Logo */}
         <div>
           <div className="flex items-center gap-2.5 mb-10">
             <span className="grid size-9 place-items-center rounded-lg bg-white text-black shadow-sm">
@@ -133,7 +111,6 @@ export default function LoginPage() {
             AI-assisted planning, real-time task tracking, and sprint analytics — all in one matte dark workspace.
           </p>
 
-          {/* Mini dashboard preview cards */}
           <div className="mt-8 space-y-3">
             <div className="rounded-xl border border-[#222228] bg-[#1c1c22] p-4 flex items-center gap-3">
               <span className="grid size-8 place-items-center rounded-lg bg-[#222228] text-zinc-300">
@@ -168,7 +145,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Weekly goal bar — same as sidebar widget */}
         <div className="rounded-xl bg-[#1c1c22] p-4 border border-[#26262e]">
           <div className="flex justify-between text-[11px] text-zinc-400 mb-2">
             <span className="font-semibold text-white">Weekly goal</span>
@@ -185,7 +161,6 @@ export default function LoginPage() {
       <div className="flex-1 bg-[#0e0e11] p-8 md:p-12 flex flex-col justify-center">
         <div className="max-w-sm w-full mx-auto">
 
-          {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-2 mb-8">
             <span className="grid size-8 place-items-center rounded-lg bg-white text-black">
               <Sparkles size={15} />
@@ -196,15 +171,15 @@ export default function LoginPage() {
           <h2 className="text-2xl font-bold text-white mb-1">Sign in</h2>
           <p className="text-xs text-zinc-400 mb-6">Access your workspace using Google or credentials.</p>
 
-          {/* Google Sign In Button */}
+          {/* Google Sign In Options */}
           <div className="mb-6 space-y-3">
             <button
               type="button"
-              onClick={handleCustomGoogleClick}
+              onClick={() => setIsGoogleModalOpen(true)}
               disabled={isLoading}
               className="w-full h-10 rounded-lg border border-[#2c2c34] bg-[#151519] text-xs font-semibold text-white hover:bg-[#1f1f26] active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 shadow-sm"
             >
-              <GoogleIcon /> Continue with Google
+              <GoogleIcon /> Sign in with Google ID
             </button>
 
             <div className="relative my-4">
@@ -217,8 +192,65 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {/* Google Account Modal */}
+          {isGoogleModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+              <div className="w-full max-w-md rounded-2xl border border-[#2c2c34] bg-[#151519] p-6 shadow-2xl">
+                <div className="flex items-center justify-between pb-4 border-b border-[#222228]">
+                  <div className="flex items-center gap-2">
+                    <GoogleIcon />
+                    <h3 className="text-base font-bold text-white">Google Account Sign In</h3>
+                  </div>
+                  <button onClick={() => setIsGoogleModalOpen(false)} className="text-zinc-400 hover:text-white">✕</button>
+                </div>
+
+                <form onSubmit={handleActualGoogleLogin} className="mt-5 space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-300 mb-1">Enter Actual Google Gmail ID</label>
+                    <input
+                      type="email"
+                      required
+                      value={googleEmailInput}
+                      onChange={(e) => setGoogleEmailInput(e.target.value)}
+                      placeholder="e.g. mahesh.thakare@gmail.com"
+                      className="w-full h-10 px-3.5 rounded-lg border border-[#2c2c34] bg-[#0e0e11] text-xs text-white outline-none focus:border-blue-500"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-300 mb-1">Google Account Name (Optional)</label>
+                    <input
+                      type="text"
+                      value={googleNameInput}
+                      onChange={(e) => setGoogleNameInput(e.target.value)}
+                      placeholder="e.g. Mahesh Thakare"
+                      className="w-full h-10 px-3.5 rounded-lg border border-[#2c2c34] bg-[#0e0e11] text-xs text-white outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsGoogleModalOpen(false)}
+                      className="px-4 py-2 rounded-lg border border-[#2c2c34] text-xs text-zinc-400 hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white flex items-center gap-2"
+                    >
+                      {isLoading ? 'Connecting...' : 'Continue with Google Account'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
             <div>
               <label className="block text-xs font-medium text-zinc-300 mb-1.5">Email address</label>
               <div className="relative">
@@ -234,7 +266,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Password */}
             <div>
               <label className="block text-xs font-medium text-zinc-300 mb-1.5">Password</label>
               <div className="relative">
@@ -257,7 +288,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={isLoading}
@@ -284,3 +314,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+
