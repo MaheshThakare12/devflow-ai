@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { register, login, logout, refreshToken, getMe } from '../controllers/auth.controller';
+import { register, login, logout, refreshToken, getMe, googleLogin } from '../controllers/auth.controller';
 import { validate } from '../middleware/validate';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
+
+router.post('/google', googleLogin);
 
 router.post(
   '/register',

@@ -5,6 +5,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password?: string;
+  googleId?: string;
   avatar: string;
   role: 'admin' | 'member';
   createdAt: Date;
@@ -14,9 +15,10 @@ export interface IUser extends Document {
 
 const UserSchema: Schema = new Schema(
   {
-    name: { type: String, required: true, minlength: 3, maxlength: 50 },
+    name: { type: String, required: true, minlength: 2, maxlength: 100 },
     email: { type: String, required: true, unique: true, lowercase: true },
-    password: { type: String, required: true, minlength: 6, select: false },
+    password: { type: String, select: false },
+    googleId: { type: String, unique: true, sparse: true },
     avatar: { type: String, default: '' },
     role: { type: String, enum: ['admin', 'member'], default: 'member' }
   },

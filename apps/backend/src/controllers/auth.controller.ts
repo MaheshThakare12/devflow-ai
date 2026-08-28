@@ -78,6 +78,40 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
+export const googleLogin = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { name, email, googleId, avatar } = req.body;
+
+    if (!email) {
+      return next(new AppError('Google authentication failed: Email is required', 400));
+    }
+
+    let user = await User.findOne({ $or: [{ googleId }, { email }] });
+
+    if (!user) {
+      user = await User.create({
+        name: name || email.split('@')[0],
+        email,
+        googleId,
+        avatar: avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || email)}&background=random`
+      });
+    } else if (!user.googleId && googleId) {
+      user.googleId = googleId;
+      if (avatar) user.avatar = avatar;
+      await user.save();
+    }
+
+    const { accessToken, refreshToken } = generateTokens(user.id);
+
+    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' });
+    res.cookie('accessToken', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' });
+
+    res.status(200).json({ success: true, user, accessToken });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const getMe = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const user = await User.findById(req.user?.id);
