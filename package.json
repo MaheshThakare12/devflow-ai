@@ -3,15 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "workspaces": [
-    "apps/frontend",
-    "apps/backend"
+    "frontend",
+    "backend"
   ],
   "scripts": {
-    "dev:backend": "npm run dev --workspace=apps/backend",
-    "dev:frontend": "npm run dev --workspace=apps/frontend",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "build": "npm run build --workspace=apps/backend && npm run build --workspace=apps/frontend",
-    "start": "concurrently \"npm run start --workspace=apps/backend\" \"npm run start --workspace=apps/frontend\""
+    "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
+    "start": "concurrently \"npm run start --workspace=backend\" \"npm run start --workspace=frontend\""
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
