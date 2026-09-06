@@ -16,16 +16,7 @@ const app = express();
 // Middleware
 app.use(cors({
   origin: (origin, callback) => {
-    const allowed = [
-      FRONTEND_URL,
-      'http://localhost:3000',
-      /\.vercel\.app$/,
-    ];
-    if (!origin || allowed.some(o => typeof o === 'string' ? o === origin : o.test(origin))) {
-      callback(null, true);
-    } else {
-      callback(null, true); // allow all for hackathon
-    }
+    callback(null, true); // allow all origins for hackathon
   },
   credentials: true
 }));
@@ -40,21 +31,24 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/ai', aiRoutes);
 
 // Health check
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (req: express.Request, res: express.Response) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // 404
-app.use('*', (req, res) => {
+app.use('*', (req: express.Request, res: express.Response) => {
   res.status(404).json({ success: false, message: 'Route not found' });
 });
 
 // Error handler
 app.use(errorHandler);
 
-// Connect DB and Start
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+// Start server first, then connect DB
+const server = app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
+connectDB().catch((err) => {
+  console.error('MongoDB connection error:', err.message);
+  // Don't exit — let server keep running
 });
