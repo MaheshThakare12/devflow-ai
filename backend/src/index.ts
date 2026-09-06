@@ -14,7 +14,21 @@ import aiRoutes from './routes/ai';
 const app = express();
 
 // Middleware
-app.use(cors({ origin: FRONTEND_URL, credentials: true }));
+app.use(cors({
+  origin: (origin, callback) => {
+    const allowed = [
+      FRONTEND_URL,
+      'http://localhost:3000',
+      /\.vercel\.app$/,
+    ];
+    if (!origin || allowed.some(o => typeof o === 'string' ? o === origin : o.test(origin))) {
+      callback(null, true);
+    } else {
+      callback(null, true); // allow all for hackathon
+    }
+  },
+  credentials: true
+}));
 app.use(express.json());
 app.use(cookieParser());
 
