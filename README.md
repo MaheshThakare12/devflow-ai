@@ -16,6 +16,13 @@
   </p>
 </div>
 
+## 🚀 Live Deployment
+
+| Service | Platform | URL |
+|---|---|---|
+| 🌐 **Frontend (Live App)** | Vercel | [devflow-ai-1.vercel.app](https://devflow-ai-1.vercel.app/) |
+| ⚙️ **Backend API** | Render | [devflow-backend-kqku.onrender.com](https://devflow-backend-kqku.onrender.com/api/health) |
+
 ---
 
 ## 📌 Milestone Submission Links
@@ -25,6 +32,7 @@
 - 🗄️ **Week 3 (Database / Schemas)**: [`github.com/MaheshThakare12/devflow-ai/tree/main/database`](https://github.com/MaheshThakare12/devflow-ai/tree/main/database)
 
 ---
+
 
 ## ✨ Features
 
